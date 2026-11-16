@@ -1,0 +1,468 @@
+/* Formulaire permanent, barre de cible et barre d'actions. */
+
+.only-phone {
+  display: none;
+}
+
+/* ---------- Barre de cible ---------- */
+
+.target-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 4px 6px 4px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: var(--fs-s);
+}
+
+.target-icon {
+  flex: none;
+  color: var(--text-3);
+}
+
+.target-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.target-text .robe-dot {
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+.target-text .badge {
+  margin-left: 6px;
+}
+
+.target-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.target-bar[data-tone='cible'] {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+.target-bar[data-tone='cible'] .target-icon {
+  color: var(--accent);
+}
+
+.target-bar[data-tone='modif'] {
+  background: var(--warn-soft);
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--border));
+  flex-wrap: wrap;
+}
+
+.target-bar[data-tone='erreur'] {
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  color: var(--danger);
+}
+
+.target-bar[data-tone='erreur'] .target-icon {
+  color: var(--danger);
+}
+
+/* ---------- Champs ---------- */
+
+.bottle-form {
+  flex: none;
+}
+
+.form-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.form-fields:disabled {
+  opacity: 0.55;
+}
+
+.f-chateau,
+.f-cepages,
+.f-robe,
+.f-forme,
+.f-plat,
+.form-suggestion {
+  grid-column: 1 / -1;
+}
+
+.f-plat {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.input-with-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.input-with-actions .input {
+  flex: 1;
+}
+
+.scan-btn {
+  flex: none;
+  color: var(--accent);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-s);
+  font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chip:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.chip-hint {
+  min-height: 28px;
+  border-style: dashed;
+  color: var(--text-2);
+}
+
+.hint-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.form-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  background: var(--gold-soft);
+  color: var(--text);
+  font-size: var(--fs-s);
+}
+
+.form-suggestion svg {
+  flex: none;
+  color: var(--gold);
+}
+
+.form-suggestion-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Barre d'actions ---------- */
+
+.action-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.action-group {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.action-group-title {
+  grid-column: 1 / -1;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 56px;
+  padding: 5px 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background-color 0.12s,
+    border-color 0.12s;
+}
+
+.action:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.action:disabled {
+  opacity: 0.4;
+}
+
+.action[data-primary]:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.action[data-primary]:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.action[aria-pressed='true'] {
+  background: var(--ok-soft);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.action-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 22px;
+}
+
+.action-badge {
+  position: absolute;
+  top: -6px;
+  left: calc(50% + 6px);
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+
+.action-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* =====================================================================
+   Téléphone : trois rangées compactes, libellés dans les champs,
+   barre d'actions défilante.
+   ===================================================================== */
+
+@media (max-width: 759px) {
+  .only-desktop {
+    display: none !important;
+  }
+
+  .only-phone {
+    display: initial;
+  }
+
+  select.only-phone {
+    display: block;
+  }
+
+  .target-bar {
+    min-height: 36px;
+    padding: 2px 4px 2px 8px;
+    border-radius: var(--radius-s);
+  }
+
+  .form-fields {
+    grid-template-columns: repeat(20, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .f-chateau {
+    grid-column: span 12;
+  }
+
+  .f-appellation {
+    grid-column: span 8;
+  }
+
+  .f-annee {
+    grid-column: span 4;
+    grid-row: 2;
+  }
+
+  .f-robe {
+    grid-column: span 5;
+    grid-row: 2;
+  }
+
+  .f-forme {
+    grid-column: span 5;
+    grid-row: 2;
+  }
+
+  .f-clayette {
+    grid-column: span 3;
+    grid-row: 2;
+  }
+
+  .f-rang {
+    grid-column: span 3;
+    grid-row: 2;
+  }
+
+  .f-cepages {
+    grid-column: span 11;
+    grid-row: 3;
+  }
+
+  .f-plat {
+    grid-column: span 9;
+    grid-row: 3;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .form-suggestion {
+    grid-row: 4;
+    padding: 3px 6px;
+  }
+
+  /* Libellé miniature à l'intérieur du champ : rien ne dépasse, tout reste lisible. */
+  .form-fields .field {
+    position: relative;
+    gap: 0;
+  }
+
+  .form-fields .field-label {
+    position: absolute;
+    top: 3px;
+    left: 8px;
+    z-index: 1;
+    font-size: 0.625rem;
+    line-height: 1;
+    color: var(--text-3);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .form-fields .input,
+  .form-fields .select {
+    min-height: 44px;
+    padding: 13px 7px 0;
+    border-radius: 8px;
+  }
+
+  .form-fields .select {
+    padding-right: 18px;
+    background-position: right 4px bottom 11px;
+  }
+
+  .form-fields .input::placeholder {
+    color: transparent;
+  }
+
+  .input-with-actions {
+    gap: 4px;
+  }
+
+  .scan-btn {
+    width: 44px;
+    min-height: 44px;
+  }
+
+  .hint-chips {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 0;
+    z-index: 5;
+    flex-wrap: nowrap;
+    padding: 4px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-2);
+  }
+
+  .hint-chips .chip {
+    min-height: 34px;
+    white-space: nowrap;
+  }
+
+  .action-bar {
+    flex-direction: row;
+    gap: 0;
+    margin: 0 -8px;
+    padding: 0 8px 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .action-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .action-group {
+    display: flex;
+    flex: none;
+    gap: 4px;
+  }
+
+  .action-group + .action-group {
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border);
+  }
+
+  .action-group-title {
+    display: none;
+  }
+
+  .action {
+    flex: none;
+    width: 66px;
+    min-height: 50px;
+    padding: 4px 2px;
+  }
+
+  .action-label {
+    font-size: 0.625rem;
+  }
+}

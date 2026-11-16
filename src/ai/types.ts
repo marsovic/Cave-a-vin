@@ -10,6 +10,14 @@ export interface AiSettings {
   rechercheWeb: boolean;
   /** Ne jamais appeler l'IA : conseils locaux uniquement, scan désactivé. */
   desactivee: boolean;
+  /**
+   * Modèles Groq à utiliser avec la clé personnelle (facultatifs ; vide = modèle par défaut
+   * de l'application). Sans effet en mode serveur, où les modèles sont choisis par le
+   * déploiement (variables GROQ_MODEL_TEXT / GROQ_MODEL_VISION / GROQ_MODEL_WEB).
+   */
+  modeleTexte?: string;
+  modeleVision?: string;
+  modeleWeb?: string;
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
@@ -31,11 +39,25 @@ export interface AiMessage {
   content: string | AiContentPart[];
 }
 
+/** Schéma JSON strict imposé à la réponse (sortie structurée). */
+export interface AiJsonSchema {
+  /** Nom du schéma : lettres, chiffres, « _ » ou « - », 64 caractères au plus. */
+  name: string;
+  /**
+   * Schéma JSON en mode strict : tous les champs dans `required`, `additionalProperties: false`
+   * sur chaque objet, champs facultatifs exprimés par `anyOf: [type, null]`.
+   */
+  schema: Record<string, unknown>;
+}
+
 export interface AiRequest {
   role: AiRole;
   messages: AiMessage[];
-  /** Demander une réponse JSON (mode JSON si le modèle le permet). */
-  json?: boolean;
+  /**
+   * Demander une réponse JSON : `true` = mode JSON simple, `{ name, schema }` = schéma strict.
+   * Ignoré pour le rôle `web` (la recherche intégrée ne renvoie que du texte libre).
+   */
+  json?: boolean | AiJsonSchema;
   maxTokens?: number;
   temperature?: number;
 }

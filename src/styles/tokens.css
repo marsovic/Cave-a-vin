@@ -1,0 +1,168 @@
+/* Jetons de design de Bacchus SmartCellar — thème clair par défaut, thème sombre automatique ou forcé. */
+
+:root {
+  color-scheme: light;
+
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+
+  /* Surfaces */
+  --bg: #f5efe7;
+  --surface: #fffdfa;
+  --surface-2: #f3ebe1;
+  --surface-3: #e9dfd2;
+  --border: #e0d5c7;
+  --border-strong: #c6b6a2;
+
+  /* Texte */
+  --text: #2a1c1f;
+  --text-2: #655356;
+  --text-3: #8d7b7a;
+
+  /* Accent lie-de-vin */
+  --accent: #7b1e3a;
+  --accent-hover: #641730;
+  --accent-contrast: #ffffff;
+  --accent-soft: #f5e4e8;
+  --accent-border: #dcb3bf;
+
+  /* Or (collection) */
+  --gold: #a26f10;
+  --gold-bright: #e2b04a;
+  --gold-soft: #f8eed6;
+
+  /* États */
+  --ok: #2c7a4b;
+  --ok-soft: #e2f1e7;
+  --warn: #a65f00;
+  --warn-soft: #fbedd3;
+  --danger: #b3261e;
+  --danger-soft: #fbe5e3;
+  --info: #2a5d88;
+  --info-soft: #e1edf7;
+
+  /* Armoire (toujours sombre, comme l'intérieur d'une cave à vin) */
+  --cab-bg: #1a1315;
+  --cab-bg-2: #231a1d;
+  --cab-frame: #3a2b2f;
+  --cab-shelf: #6b5645;
+  --cab-text: #d2c3b5;
+  --cab-text-dim: #94837a;
+  --cab-empty: #50403f;
+  --cab-highlight: #fff6e6;
+
+  /* Robes */
+  --robe-rouge: #9a2743;
+  --robe-rouge-ink: #ffe9ee;
+  --robe-blanc: #efe3a4;
+  --robe-blanc-ink: #4a4108;
+  --robe-liquoreux: #e3a23a;
+  --robe-liquoreux-ink: #4a2c00;
+  --robe-rose: #f5aeb9;
+  --robe-rose-ink: #5c1826;
+
+  /* Marqueurs du schéma */
+  --mark-free: #5fd08a;
+  --mark-source: #ffb23e;
+  --mark-dest: #5cc8ff;
+  --mark-select: #ffffff;
+
+  /* Statuts de dégustation */
+  --st-jeune: #5aa9e6;
+  --st-boire: #58c283;
+  --st-vite: #ff9f1c;
+  --st-passe: #e5606a;
+  --st-inconnu: #a79c98;
+
+  /* Mesures */
+  --radius-s: 6px;
+  --radius: 10px;
+  --radius-l: 16px;
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 24px;
+  --header-h: 44px;
+  --control-h: 40px;
+  --fs-xs: 0.75rem;
+  --fs-s: 0.8125rem;
+  --fs-m: 0.9375rem;
+  --fs-l: 1.0625rem;
+  --shadow-1: 0 1px 2px rgb(60 30 30 / 8%), 0 1px 3px rgb(60 30 30 / 6%);
+  --shadow-2: 0 4px 12px rgb(60 30 30 / 12%), 0 2px 4px rgb(60 30 30 / 8%);
+  --shadow-3: 0 12px 32px rgb(40 15 20 / 28%), 0 4px 10px rgb(40 15 20 / 14%);
+  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+/* Thème sombre : automatique (préférence système) sauf si le thème clair est forcé… */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='clair']) {
+    color-scheme: dark;
+    --bg: #130e10;
+    --surface: #1e1719;
+    --surface-2: #281f22;
+    --surface-3: #33282b;
+    --border: #3b2e31;
+    --border-strong: #57454a;
+    --text: #f2e9e4;
+    --text-2: #c2b1ad;
+    --text-3: #97847f;
+    --accent: #d9627f;
+    --accent-hover: #e67d97;
+    --accent-contrast: #1c0b10;
+    --accent-soft: #3a1c26;
+    --accent-border: #6b3344;
+    --gold: #e2b04a;
+    --gold-soft: #3a2e15;
+    --ok: #62c98b;
+    --ok-soft: #173123;
+    --warn: #f0a94a;
+    --warn-soft: #3a2a10;
+    --danger: #f2877f;
+    --danger-soft: #3d1a18;
+    --info: #7fb8e6;
+    --info-soft: #172a3a;
+    --cab-bg: #0d090a;
+    --cab-bg-2: #171012;
+    --cab-frame: #2d2124;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-2: 0 4px 12px rgb(0 0 0 / 45%);
+    --shadow-3: 0 12px 32px rgb(0 0 0 / 60%);
+  }
+}
+
+/* … ou forcé par l'utilisateur. */
+:root[data-theme='sombre'] {
+  color-scheme: dark;
+  --bg: #130e10;
+  --surface: #1e1719;
+  --surface-2: #281f22;
+  --surface-3: #33282b;
+  --border: #3b2e31;
+  --border-strong: #57454a;
+  --text: #f2e9e4;
+  --text-2: #c2b1ad;
+  --text-3: #97847f;
+  --accent: #d9627f;
+  --accent-hover: #e67d97;
+  --accent-contrast: #1c0b10;
+  --accent-soft: #3a1c26;
+  --accent-border: #6b3344;
+  --gold: #e2b04a;
+  --gold-soft: #3a2e15;
+  --ok: #62c98b;
+  --ok-soft: #173123;
+  --warn: #f0a94a;
+  --warn-soft: #3a2a10;
+  --danger: #f2877f;
+  --danger-soft: #3d1a18;
+  --info: #7fb8e6;
+  --info-soft: #172a3a;
+  --cab-bg: #0d090a;
+  --cab-bg-2: #171012;
+  --cab-frame: #2d2124;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-2: 0 4px 12px rgb(0 0 0 / 45%);
+  --shadow-3: 0 12px 32px rgb(0 0 0 / 60%);
+}

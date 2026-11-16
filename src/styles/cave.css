@@ -1,0 +1,477 @@
+/* Schéma de la cave : l'armoire, ses clayettes et ses emplacements. */
+
+.cave-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  padding: 2px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.cabinet {
+  --label-w: 52px;
+  margin: auto;
+  padding: 10px 12px 8px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgb(255 220 190 / 6%), transparent 60%),
+    linear-gradient(var(--cab-bg-2), var(--cab-bg));
+  border: 3px solid var(--cab-frame);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 4%),
+    inset 0 0 36px rgb(0 0 0 / 55%),
+    var(--shadow-2);
+  color: var(--cab-text);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.cabinet[data-compact] {
+  --label-w: 30px;
+  padding: 8px 8px 6px;
+}
+
+.shelf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0 4px;
+  border-bottom: 2px solid var(--cab-shelf);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 60%);
+}
+
+.shelf:last-child {
+  margin-bottom: 2px;
+}
+
+.shelf-label {
+  flex: none;
+  width: var(--label-w);
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 5px;
+  line-height: 1;
+}
+
+.shelf-num {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--cab-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.shelf-type {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cab-text-dim);
+  min-width: 26px;
+}
+
+.shelf[data-type='bordeaux'] .shelf-type {
+  color: #e7a3b3;
+}
+
+.shelf[data-type='bourgogne'] .shelf-type {
+  color: #e9cf8a;
+}
+
+.shelf[data-type='champagne'] .shelf-type {
+  color: #a9d8c0;
+}
+
+.cabinet[data-compact] .shelf {
+  gap: 5px;
+}
+
+.cabinet[data-compact] .shelf-label {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.cabinet[data-compact] .shelf-type {
+  font-size: 0.5rem;
+  min-width: 0;
+}
+
+.shelf-slots {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--slot);
+  gap: var(--slot-gap);
+}
+
+/* ---------- Emplacement ---------- */
+
+.slot {
+  position: relative;
+  width: var(--slot);
+  height: var(--slot);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Emplacement vide : anneau en pointillés. */
+.slot::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--cab-empty);
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.slot[data-robe]::before {
+  display: none;
+}
+
+.slot:focus-visible {
+  box-shadow: 0 0 0 2px var(--cab-bg), 0 0 0 4px var(--gold-bright);
+}
+
+.slot:hover::before {
+  border-color: var(--cab-text-dim);
+}
+
+/* ---------- Bouteille (vue du culot) ---------- */
+
+.bottle {
+  --c: var(--robe-rouge);
+  --ink: var(--robe-rouge-ink);
+  position: absolute;
+  inset: 1px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 34% 28%,
+    color-mix(in srgb, var(--c) 62%, white) 0%,
+    var(--c) 46%,
+    color-mix(in srgb, var(--c) 62%, black) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 30%),
+    inset 0 0 0 calc(var(--slot) * 0.17) rgb(0 0 0 / 7%),
+    0 1px 2px rgb(0 0 0 / 60%);
+  color: var(--ink);
+  transition:
+    opacity 0.18s,
+    transform 0.18s,
+    box-shadow 0.18s,
+    filter 0.18s;
+}
+
+.slot[data-robe='blanc'] .bottle {
+  --c: var(--robe-blanc);
+  --ink: var(--robe-blanc-ink);
+}
+
+.slot[data-robe='blanc-liquoreux'] .bottle {
+  --c: var(--robe-liquoreux);
+  --ink: var(--robe-liquoreux-ink);
+}
+
+.slot[data-robe='rose'] .bottle {
+  --c: var(--robe-rose);
+  --ink: var(--robe-rose-ink);
+}
+
+/* Repères non colorés : le liquoreux porte un double anneau, le rosé un anneau pointillé. */
+.slot[data-robe='blanc-liquoreux'] .bottle::before,
+.slot[data-robe='rose'] .bottle::before {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--ink) 55%, transparent);
+  pointer-events: none;
+}
+
+.slot[data-robe='rose'] .bottle::before {
+  border-style: dotted;
+}
+
+.bottle-year {
+  position: relative;
+  font-size: calc(var(--slot) * 0.36);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Bouteille de collection : anneau doré et étoile. */
+.slot[data-collection] .bottle {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 30%),
+    0 0 0 2px var(--gold-bright),
+    0 1px 3px rgb(0 0 0 / 60%);
+}
+
+.slot[data-collection] .bottle::after {
+  content: '★';
+  position: absolute;
+  top: -18%;
+  right: -18%;
+  width: 46%;
+  height: 46%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  color: #3b2a00;
+  font-size: calc(var(--slot) * 0.3);
+  line-height: 1;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 40%);
+}
+
+/* ---------- Tons : mise en valeur / atténuation ---------- */
+
+.slot[data-tone='dim'] .bottle {
+  opacity: 0.22;
+  filter: saturate(0.5);
+}
+
+.slot[data-tone='match'] .bottle {
+  transform: scale(1.06);
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 30%),
+    0 0 0 2px var(--cab-highlight),
+    0 0 12px 3px rgb(255 236 190 / 55%);
+  z-index: 1;
+}
+
+.slot[data-tone='match'][data-collection] .bottle {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 30%),
+    0 0 0 2px var(--gold-bright),
+    0 0 0 4px var(--cab-highlight),
+    0 0 12px 4px rgb(255 236 190 / 55%);
+}
+
+/* ---------- Emplacement désigné par le formulaire ---------- */
+
+.slot[data-selected]::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2.5px solid var(--mark-select);
+  box-shadow:
+    0 0 0 1.5px rgb(0 0 0 / 70%),
+    0 0 10px 2px rgb(255 255 255 / 45%);
+  pointer-events: none;
+  z-index: 2;
+  animation: slot-pop 0.25s ease-out;
+}
+
+.slot[data-selected]:not([data-robe])::before {
+  border-style: solid;
+  border-color: var(--mark-select);
+  background: rgb(255 255 255 / 10%);
+}
+
+@keyframes slot-pop {
+  from {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ---------- Marqueurs ---------- */
+
+.slot[data-marker='libre']::before {
+  border: 2px solid var(--mark-free);
+  background: color-mix(in srgb, var(--mark-free) 22%, transparent);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--mark-free) 50%, transparent);
+}
+
+.slot[data-marker='possible']:not([data-robe])::before {
+  border: 1.5px solid color-mix(in srgb, var(--mark-free) 70%, transparent);
+  background: color-mix(in srgb, var(--mark-free) 10%, transparent);
+}
+
+.slot[data-marker='possible'][data-robe] .bottle {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 30%),
+    0 0 0 1.5px color-mix(in srgb, var(--mark-free) 80%, transparent);
+}
+
+.slot[data-marker='propose']::before {
+  border: 2px solid var(--mark-free);
+  background: var(--mark-free);
+  animation: slot-pulse 1.1s ease-in-out infinite;
+}
+
+.slot[data-marker='propose']::after {
+  content: '+';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #06351a;
+  font-weight: 800;
+  font-size: calc(var(--slot) * 0.62);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.slot[data-marker='incompatible'] {
+  cursor: not-allowed;
+}
+
+.slot[data-marker='incompatible']:not([data-robe])::before {
+  border-color: color-mix(in srgb, var(--cab-empty) 60%, transparent);
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    color-mix(in srgb, var(--st-passe) 35%, transparent) 3px 4.5px
+  );
+}
+
+.slot[data-marker='source'] .bottle {
+  opacity: 1;
+  filter: none;
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 30%),
+    0 0 0 3px var(--mark-source),
+    0 0 14px 4px color-mix(in srgb, var(--mark-source) 65%, transparent);
+  animation: slot-pulse 1.1s ease-in-out infinite;
+  z-index: 2;
+}
+
+.slot[data-marker='destination']::before {
+  display: block;
+  border: 3px solid var(--mark-dest);
+  background: color-mix(in srgb, var(--mark-dest) 22%, transparent);
+  box-shadow: 0 0 14px 4px color-mix(in srgb, var(--mark-dest) 60%, transparent);
+  animation: slot-pulse 1.1s ease-in-out infinite;
+  inset: 0;
+}
+
+.slot[data-marker='destination']::after {
+  content: '';
+  position: absolute;
+  inset: 36%;
+  border-radius: 50%;
+  background: var(--mark-dest);
+  pointer-events: none;
+}
+
+@keyframes slot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+/* Survol pendant un glisser-déposer. */
+.slot[data-over]::before {
+  display: block;
+  border: 2px solid var(--mark-dest);
+  background: color-mix(in srgb, var(--mark-dest) 25%, transparent);
+  inset: -1px;
+  z-index: 3;
+}
+
+.slot[draggable='true'] {
+  cursor: grab;
+}
+
+/* ---------- Statut de dégustation (vue « conseil ») ---------- */
+
+.slot[data-status] .bottle::after {
+  content: '';
+  position: absolute;
+  right: -10%;
+  bottom: -10%;
+  top: auto;
+  width: 40%;
+  height: 40%;
+  border-radius: 50%;
+  background: var(--st-inconnu);
+  box-shadow: 0 0 0 1.5px var(--cab-bg);
+}
+
+.slot[data-status='trop-jeune'] .bottle::after {
+  background: var(--st-jeune);
+}
+
+.slot[data-status='a-boire'] .bottle::after {
+  background: var(--st-boire);
+}
+
+.slot[data-status='a-boire-vite'] .bottle::after {
+  background: var(--st-vite);
+}
+
+.slot[data-status='passe'] .bottle::after {
+  background: var(--st-passe);
+}
+
+/* ---------- Légende ---------- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 4px 2px 0;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex: none;
+  border: 1px solid rgb(0 0 0 / 25%);
+}
+
+.legend-swatch[data-kind='libre'] {
+  border: 1.5px dashed var(--text-3);
+  background: transparent;
+}
+
+.legend-swatch[data-kind='collection'] {
+  background: var(--surface-3);
+  box-shadow: 0 0 0 2px var(--gold-bright);
+  border: 0;
+}
+
+.legend-swatch[data-kind='match'] {
+  background: var(--surface-3);
+  box-shadow: 0 0 0 2px var(--cab-highlight), 0 0 6px 1px rgb(200 160 80 / 80%);
+  border: 0;
+}
