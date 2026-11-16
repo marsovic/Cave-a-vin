@@ -43,20 +43,34 @@ Dans le navigateur de votre appareil, et dans le fichier CSV que vous liez ou ex
 
 ### Format du fichier CSV
 
-Texte UTF-8, séparateur `;`, lisible et modifiable dans Excel. Une ligne par clayette (configuration), puis une ligne par bouteille :
+Texte UTF-8, séparateur `;`, lisible et modifiable dans Excel. Une ligne par clayette (configuration), puis une ligne par bouteille. Le fichier exporté s'appelle `bacchus-smartcellar-AAAA-MM-JJ.csv` :
 
 ```csv
-enregistrement;clayette;rang;emplacements;type;chateau;appellation;annee;cepages;robe;forme;collection
-clayette;1;;12;Bordeaux;;;;;;;
-clayette;2;;12;Tout;;;;;;;
-bouteille;1;3;;;Château Margaux;Margaux;2015;Cabernet Sauvignon, Merlot;Rouge;Bordeaux;non
-bouteille;2;1;;;Dom Pérignon;Champagne;;Chardonnay, Pinot noir;Blanc;Champagne;oui
+type;id;capacite;type_clayette;nom;appellation;millesime;cepages;robe;forme;clayette;place;collection
+clayette;;13;bordeaux;;;;;;;1;;
+clayette;;10;champagne;;;;;;;2;;
+bouteille;5b4de640-fb29-43e6-8a7c-3759285376fc;;;Château Tayac;Margaux;1975;Cabernet Sauvignon, Merlot, Petit Verdot;Rouge;bordeaux;1;2;oui
+bouteille;8c1f02aa-0d6e-4c1b-9d57-0c5a3a6f2b11;;;Dom Pérignon;Champagne;;Chardonnay, Pinot noir;Blanc;champagne;2;1;non
 ```
 
-- `type` de clayette : `Bordeaux`, `Bourgogne`, `Champagne` ou `Tout`. Une bouteille ne peut aller que sur une clayette de son type ou sur une clayette `Tout`.
-- `robe` : `Rouge`, `Blanc`, `Blanc liquoreux`, `Rosé`. `forme` : `Bordeaux`, `Bourgogne`, `Champagne`, `Autre` (flûte, magnum… : uniquement sur une clayette `Tout`).
+| Colonne | Ligne `clayette` | Ligne `bouteille` |
+| --- | --- | --- |
+| `type` | `clayette` | `bouteille` |
+| `id` | — | identifiant de la bouteille (UUID), conservé d'un export à l'autre |
+| `capacite` | nombre d'emplacements | — |
+| `type_clayette` | `bordeaux`, `bourgogne`, `champagne` ou `tout` | — |
+| `nom`, `appellation`, `millesime`, `cepages` | — | le vin (millésime vide = non millésimé ; cépages séparés par des virgules) |
+| `robe` | — | `Rouge`, `Blanc`, `Blanc liquoreux`, `Rosé` |
+| `forme` | — | `bordeaux`, `bourgogne`, `champagne`, `autre` (flûte, magnum… : uniquement sur une clayette `tout`) |
+| `clayette` | n° de la clayette (1 = en haut) | n° de la clayette |
+| `place` | — | rang dans la clayette (1 = à gauche) |
+| `collection` | — | `oui` / `non` |
+
+- Une bouteille ne peut aller que sur une clayette de sa forme ou sur une clayette `tout`.
+- **La cave modélisée** — l'armoire réelle : 9 clayettes de 13 places « bordeaux », 1 de 12 places « bourgogne », 1 de 10 places « champagne », et ses 139 bouteilles — est fournie avec l'application : écran d'accueil ou *Fichier → Charger la cave Bacchus* ([`public/cave-bacchus.csv`](public/cave-bacchus.csv)). C'est aussi la disposition proposée par défaut pour une cave vide.
+- L'ancien format (`enregistrement;clayette;rang;emplacements;type;chateau;…;annee;…`) reste lu.
 - La lecture est tolérante : séparateur `,` ou tabulation, en-têtes avec accents ou synonymes, colonnes dans le désordre, encodage Windows-1252 d'Excel, fichier sans lignes `clayette` (la configuration est alors déduite). Les lignes corrigées ou ignorées sont listées après l'import.
-- Un modèle est téléchargeable dans *Fichier → Modèle de fichier CSV* ([`public/exemple-cave.csv`](public/exemple-cave.csv)).
+- Un modèle (cave fictive, avec des places libres) est téléchargeable dans *Fichier → Modèle de fichier CSV* ([`public/exemple-cave.csv`](public/exemple-cave.csv)).
 
 ## Assistant IA (Groq)
 

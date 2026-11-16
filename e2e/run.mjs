@@ -47,7 +47,9 @@ async function readCellar(page) {
   return page.evaluate(() => {
     const csv = localStorage.getItem('bacchus.cave.csv') ?? '';
     const lines = csv.split(/\r?\n/).filter(Boolean);
-    const header = (lines.shift() ?? '').split(';');
+    // Colonnes du fichier → noms utilisés par les contrôles ci-dessous.
+    const alias = { type: 'enregistrement', capacite: 'emplacements', type_clayette: 'type', nom: 'chateau', millesime: 'annee', place: 'rang' };
+    const header = (lines.shift() ?? '').split(';').map((h) => alias[h] ?? h);
     const rows = lines.map((line) => {
       const cells = line.split(';');
       return Object.fromEntries(header.map((h, i) => [h, cells[i] ?? '']));
@@ -157,7 +159,7 @@ async function desktop(browser) {
   let now = await readCellar(page);
   const added = now.bottles.filter((b) => b.chateau === 'Château Test');
   check('ajout : trois bouteilles enregistrées', added.length === 3);
-  check('ajout : robe, forme et cépages déduits de l\'appellation', added.every((b) => b.robe === 'Rouge' && b.forme === 'Bordeaux' && /Cabernet/.test(b.cepages)), JSON.stringify(added[0]));
+  check('ajout : robe, forme et cépages déduits de l\'appellation', added.every((b) => b.robe === 'Rouge' && b.forme === 'bordeaux' && /Cabernet/.test(b.cepages)), JSON.stringify(added[0]));
 
   // --- Déplacer vers une place libre ---
   const moved = added[0];
@@ -277,7 +279,7 @@ async function desktop(browser) {
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Télécharger le CSV' }).click();
   const file = await download;
-  check('export : fichier CSV téléchargé', /^bacchus-cave-\d{4}-\d{2}-\d{2}\.csv$/.test(file.suggestedFilename()), file.suggestedFilename());
+  check('export : fichier CSV téléchargé', /^bacchus-smartcellar-\d{4}-\d{2}-\d{2}\.csv$/.test(file.suggestedFilename()), file.suggestedFilename());
   await page.keyboard.press('Escape');
 
   // --- Persistance après rechargement ---
@@ -420,9 +422,69 @@ async function assistant(browser) {
   await context.close();
 }
 
+/** La cave réelle modélisée : 11 clayettes, 139 bouteilles, armoire pleine. */
+async function reference(browser) {
+  console.log('\nCave Bacchus (armoire réelle, pleine)');
+  const { context, page } = await open(browser, 'bacchus', { viewport: { width: 1440, height: 900 } });
+  await page.getByRole('button', { name: /Charger la cave Bacchus/ }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.slot[data-robe]').length === 139);
+  const cave = await readCellar(page);
+  check('cave Bacchus : 11 clayettes (9 × 13 bordeaux, 12 bourgogne, 10 champagne)',
+    cave.shelves.map((s) => `${s.emplacements}${s.type[0]}`).join(' ') === '13b 13b 13b 13b 13b 13b 13b 13b 13b 12b 10c',
+    cave.shelves.map((s) => `${s.emplacements}${s.type[0]}`).join(' '));
+  check('cave Bacchus : 139 bouteilles, identifiants d\'origine conservés',
+    cave.bottles.length === 139 && cave.bottles.some((b) => b.id === '5b4de640-fb29-43e6-8a7c-3759285376fc' && b.chateau === 'Château Tayac' && b.rang === '2'),
+    `${cave.bottles.length} bouteilles`);
+  check('cave Bacchus : 13 bouteilles de collection', (await page.locator('.slot[data-collection]').count()) === 13 && cave.bottles.filter((b) => b.collection === 'oui').length === 13);
+  const box = await page.locator('.cave-viewport').boundingBox();
+  check('cave Bacchus : le schéma tient à l\'écran', Boolean(box) && box.y + box.height <= 900 + 1, JSON.stringify(box));
+  await shot(page, 'bacchus-01-cave');
+
+  await field(page, 'appellation').fill('Haut-Médoc');
+  await page.waitForTimeout(150);
+  const hautMedoc = cave.bottles.filter((b) => b.appellation === 'Haut-Médoc').length;
+  check('cave Bacchus : recherche « Haut-Médoc »', hautMedoc === 42 && (await page.locator('.slot[data-tone="match"]').count()) === 42, `${hautMedoc}`);
+  await field(page, 'annee').fill('2020');
+  await page.waitForTimeout(150);
+  const both = cave.bottles.filter((b) => b.appellation === 'Haut-Médoc' && b.annee === '2020').length;
+  check('cave Bacchus : conjonction appellation + année', (await page.locator('.slot[data-tone="match"]').count()) === both, `${both}`);
+  await shot(page, 'bacchus-02-recherche');
+  await field(page, 'appellation').fill('');
+  await field(page, 'annee').fill('');
+
+  await action(page, 'Places libres').click();
+  await page.waitForTimeout(150);
+  check('cave Bacchus : aucune place libre', (await page.locator('.slot[data-marker="libre"]').count()) === 0);
+
+  // Réorganisation d'une armoire pleine : il faut poser une bouteille hors de la cave.
+  await action(page, 'Réorganiser').click();
+  const start = page.getByRole('button', { name: /Commencer le guidage/ });
+  await start.waitFor();
+  check('cave Bacchus : un plan de réorganisation est proposé', await start.isEnabled());
+  await shot(page, 'bacchus-03-reorg-apercu');
+  await start.click();
+  await page.waitForSelector('.banner-reorg');
+  const steps = Number(/\/\s*(\d+)/.exec(await page.locator('.banner-step').innerText())?.[1] ?? 0);
+  for (let i = 0; i < steps; i++) await page.locator('.banner-done').click();
+  await page.waitForSelector('.banner-reorg', { state: 'detached' });
+  const sorted = await readCellar(page);
+  const years = sorted.bottles
+    .slice()
+    .sort((a, b) => Number(a.clayette) - Number(b.clayette) || Number(a.rang) - Number(b.rang))
+    .filter((b) => b.forme === 'bordeaux' && b.annee !== '')
+    .map((b) => Number(b.annee));
+  check('cave Bacchus : guidage mené au bout, 139 bouteilles toujours là', sorted.bottles.length === 139 && steps > 0, `${steps} étape(s)`);
+  check('cave Bacchus : les bordeaux sont triés du plus ancien au plus récent', years.every((y, i) => i === 0 || years[i - 1] <= y), years.join(' '));
+  check('cave Bacchus : identifiants inchangés après réorganisation',
+    new Set(sorted.bottles.map((b) => b.id)).size === 139 && cave.bottles.every((b) => sorted.bottles.some((x) => x.id === b.id)));
+  await shot(page, 'bacchus-04-reorg-fini');
+  await context.close();
+}
+
 const browser = await chromium.launch();
 try {
   await desktop(browser);
+  await reference(browser);
   await phone(browser);
   await assistant(browser);
 } catch (error) {

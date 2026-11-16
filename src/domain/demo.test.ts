@@ -181,12 +181,13 @@ describe('DEMO_CSV', () => {
 });
 
 describe('demoCellar', () => {
-  it('renvoie une nouvelle cave à chaque appel, identique aux identifiants près', () => {
+  it('renvoie une nouvelle cave à chaque appel, identique (identifiants « ex-… » fixes et uniques)', () => {
     const autre = demoCellar();
     expect(autre).not.toBe(cellar);
-    expect(serializeCellar(autre)).toBe(serializeCellar(cellar));
-    const ids = new Set([...cellar.bottles, ...autre.bottles].map((b) => b.id));
-    expect(ids.size).toBe(cellar.bottles.length + autre.bottles.length);
+    expect(autre).toEqual(cellar);
+    const ids = new Set(cellar.bottles.map((b) => b.id));
+    expect(ids.size).toBe(cellar.bottles.length);
+    expect([...ids].every((id) => /^ex-\d{3}$/.test(id))).toBe(true);
   });
 });
 

@@ -48,12 +48,12 @@ export function csvFile(csv: string, filename: string, type = 'text/csv'): File 
   return new File([BOM + csv], filename, { type });
 }
 
-/** Nom de fichier daté : `bacchus-cave-2026-11-16.csv` (date locale). */
+/** Nom de fichier daté : `bacchus-smartcellar-2026-11-16.csv` (date locale). */
 export function datedFilename(date: Date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
-  return `bacchus-cave-${y}-${m}-${d}.csv`;
+  return `bacchus-smartcellar-${y}-${m}-${d}.csv`;
 }
 
 /** Déclenche le téléchargement du CSV par le navigateur. */
@@ -89,7 +89,7 @@ function shareableFile(csv: string, filename: string): File | null {
 
 /** Le navigateur sait-il partager un fichier CSV (Web Share API niveau 2) ? */
 export function canShareCsv(): boolean {
-  return shareableFile('a;b\r\n', 'bacchus-cave.csv') !== null;
+  return shareableFile('a;b\r\n', 'bacchus-smartcellar.csv') !== null;
 }
 
 /**

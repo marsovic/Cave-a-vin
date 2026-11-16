@@ -112,6 +112,17 @@ function index(): { exact: Map<string, AppellationInfo>; entries: IndexEntry[] }
 }
 
 /** Recherche tolérante d'une appellation (casse, accents, alias, « AOC … », mentions de cru). */
+/**
+ * Appellation d'un vin : celle qui est saisie ; à défaut (vide ou inconnue), celle que
+ * désigne son nom (« Amarone della Valpolicella » saisi comme nom, « Château Margaux »…).
+ */
+export function findWineAppellation(wine: { chateau: string; appellation: string }): AppellationInfo | undefined {
+  return (
+    (wine.appellation.trim() ? findAppellation(wine.appellation) : undefined) ??
+    (wine.chateau.trim() ? findAppellation(wine.chateau) : undefined)
+  );
+}
+
 export function findAppellation(name: string): AppellationInfo | undefined {
   const query = clean(name);
   if (query.length < 3) return undefined;

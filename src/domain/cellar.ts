@@ -19,15 +19,13 @@ import {
 
 let idCounter = 0;
 
-/** Génère un identifiant technique unique pour une bouteille. */
+/** Génère un identifiant technique unique pour une bouteille (UUID, comme dans le fichier de la cave). */
 export function newBottleId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   idCounter += 1;
-  const rand =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.floor(Math.random() * 0xffffffff)
-          .toString(16)
-          .padStart(8, '0');
+  const rand = Math.floor(Math.random() * 0xffffffff)
+    .toString(16)
+    .padStart(8, '0');
   return `b${Date.now().toString(36)}${idCounter.toString(36)}${rand}`;
 }
 
@@ -35,14 +33,17 @@ export function createCellar(shelves: Shelf[]): Cellar {
   return { shelves: shelves.map((s) => ({ ...s })), bottles: [] };
 }
 
-/** Cave par défaut : 12 clayettes de 12 emplacements « tout ». */
+/**
+ * Cave par défaut : l'armoire modélisée — 9 clayettes de 13 places « bordeaux », puis une
+ * clayette de 12 places « bourgogne » et une de 10 places « champagne » (139 emplacements).
+ */
 export function defaultCellar(): Cellar {
-  return createCellar(
-    Array.from({ length: SHELF_LIMITS.defaultShelves }, () => ({
-      capacite: SHELF_LIMITS.defaultCapacity,
-      type: 'tout' as TypeClayette,
-    })),
-  );
+  const shelf = (capacite: number, type: TypeClayette): Shelf => ({ capacite, type });
+  return createCellar([
+    ...Array.from({ length: 9 }, () => shelf(13, 'bordeaux')),
+    shelf(12, 'bourgogne'),
+    shelf(10, 'champagne'),
+  ]);
 }
 
 /* ------------------------------------------------------------------ */

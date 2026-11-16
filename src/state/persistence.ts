@@ -3,6 +3,7 @@ import { DEFAULT_AI_SETTINGS, type AiSettings } from '../ai/types';
 import { validateCellar } from '../domain/cellar';
 import { CSV_DEFAULT_FILENAME, parseCellarCsv, serializeCellar } from '../domain/csv';
 import { demoCellar } from '../domain/demo';
+import { referenceCellar } from '../domain/reference';
 import type { ReorgPlan } from '../domain/reorg';
 import type { Bottle, Cellar, DrinkWindow } from '../domain/types';
 import {
@@ -528,15 +529,13 @@ export async function exportMail(): Promise<void> {
     );
 }
 
-/** Charge la cave d'exemple (annulable). */
-export function loadDemo(): void {
+/** Remplace la cave par une cave fournie avec l'application (annulable, confirmation si la cave n'est pas vide). */
+function loadBuiltIn(make: () => Cellar, nom: string, bravo: string): void {
   const store = useStore.getState();
   const apply = (): void => {
-    useStore.getState().replaceCellar(demoCellar(), 'Chargement de la cave d\'exemple');
+    useStore.getState().replaceCellar(make(), `Chargement de ${nom}`);
     useStore.getState().closeDialog();
-    useStore.getState().toast('succes', 'Cave d\'exemple chargée. Essayez une recherche ou la réorganisation !', {
-      undo: true,
-    });
+    useStore.getState().toast('succes', bravo, { undo: true });
   };
   if (store.cellar.bottles.length === 0) {
     apply();
@@ -545,11 +544,25 @@ export function loadDemo(): void {
   store.openDialog({
     kind: 'confirm',
     title: 'Remplacer la cave actuelle ?',
-    message: `La cave actuelle (${store.cellar.bottles.length} bouteille(s)) sera remplacée par la cave d'exemple. Vous pourrez annuler juste après.`,
-    confirmLabel: 'Charger l\'exemple',
+    message: `La cave actuelle (${store.cellar.bottles.length} bouteille(s)) sera remplacée par ${nom}. Vous pourrez annuler juste après.`,
+    confirmLabel: 'Remplacer',
     danger: true,
     onConfirm: apply,
   });
+}
+
+/** Charge la cave d'exemple, fictive (annulable). */
+export function loadDemo(): void {
+  loadBuiltIn(demoCellar, 'la cave d\'exemple', 'Cave d\'exemple chargée. Essayez une recherche ou la réorganisation !');
+}
+
+/** Charge la cave de référence : l'armoire réelle modélisée, avec ses 139 bouteilles (annulable). */
+export function loadReference(): void {
+  loadBuiltIn(
+    referenceCellar,
+    'la cave Bacchus (139 bouteilles)',
+    'Cave Bacchus chargée : 11 clayettes, 139 bouteilles.',
+  );
 }
 
 /* ------------------------------------------------------------------ */

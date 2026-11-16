@@ -72,7 +72,7 @@ describe('export', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('nom de fichier daté et fichier avec BOM', async () => {
-    expect(datedFilename(new Date(2026, 10, 6))).toBe('bacchus-cave-2026-11-06.csv');
+    expect(datedFilename(new Date(2026, 10, 6))).toBe('bacchus-smartcellar-2026-11-06.csv');
     const file = csvFile('a;b', 'cave.csv');
     expect(file.name).toBe('cave.csv');
     expect(file.type).toBe('text/csv');

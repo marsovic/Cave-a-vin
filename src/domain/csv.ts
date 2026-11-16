@@ -18,18 +18,43 @@ import {
  *  - une ligne `bouteille` par bouteille.
  *
  * Colonnes (dans cet ordre à l'écriture ; ordre libre à la lecture) :
- *   enregistrement ; clayette ; rang ; emplacements ; type ; chateau ; appellation ;
- *   annee ; cepages ; robe ; forme ; collection
+ *   type ; id ; capacite ; type_clayette ; nom ; appellation ; millesime ; cepages ;
+ *   robe ; forme ; clayette ; place ; collection
  *
  * Exemple :
- *   enregistrement;clayette;rang;emplacements;type;chateau;appellation;annee;cepages;robe;forme;collection
- *   clayette;1;;12;Bordeaux;;;;;;;
- *   clayette;2;;12;Tout;;;;;;;
- *   bouteille;1;3;;;Château Margaux;Margaux;2015;Cabernet Sauvignon, Merlot;Rouge;Bordeaux;non
- *   bouteille;2;1;;;Dom Pérignon;Champagne;;Chardonnay, Pinot noir;Blanc;Champagne;oui
+ *   type;id;capacite;type_clayette;nom;appellation;millesime;cepages;robe;forme;clayette;place;collection
+ *   clayette;;13;bordeaux;;;;;;;1;;
+ *   clayette;;10;champagne;;;;;;;2;;
+ *   bouteille;5b4de640-…;;;Château Tayac;Margaux;1975;Cabernet Sauvignon, Merlot;Rouge;bordeaux;1;2;oui
+ *   bouteille;8c1f02aa-…;;;Dom Pérignon;Champagne;;Chardonnay, Pinot noir;Blanc;champagne;2;1;non
+ *
+ * L'ancien format (`enregistrement;clayette;rang;emplacements;type;chateau;…;annee;…`)
+ * reste lu : seuls les noms de colonnes diffèrent.
  */
 export const CSV_COLUMNS = [
+  'type',
+  'id',
+  'capacite',
+  'type_clayette',
+  'nom',
+  'appellation',
+  'millesime',
+  'cepages',
+  'robe',
+  'forme',
+  'clayette',
+  'place',
+  'collection',
+] as const;
+
+export const CSV_SEPARATOR = ';';
+export const CSV_MIME = 'text/csv';
+export const CSV_DEFAULT_FILENAME = 'bacchus-smartcellar.csv';
+
+/** Colonnes telles que l'analyseur les manipule (indépendantes des noms d'en-tête du fichier). */
+const COLUMNS = [
   'enregistrement',
+  'id',
   'clayette',
   'rang',
   'emplacements',
@@ -43,11 +68,24 @@ export const CSV_COLUMNS = [
   'collection',
 ] as const;
 
-export const CSV_SEPARATOR = ';';
-export const CSV_MIME = 'text/csv';
-export const CSV_DEFAULT_FILENAME = 'bacchus-cave.csv';
+type Column = (typeof COLUMNS)[number];
 
-type Column = (typeof CSV_COLUMNS)[number];
+/** Colonne du fichier → colonne interne. */
+const FILE_COLUMN: Record<(typeof CSV_COLUMNS)[number], Column> = {
+  type: 'enregistrement',
+  id: 'id',
+  capacite: 'emplacements',
+  type_clayette: 'type',
+  nom: 'chateau',
+  appellation: 'appellation',
+  millesime: 'annee',
+  cepages: 'cepages',
+  robe: 'robe',
+  forme: 'forme',
+  clayette: 'clayette',
+  place: 'rang',
+  collection: 'collection',
+};
 
 /* ------------------------------------------------------------------ */
 /* Écriture                                                            */
@@ -75,7 +113,7 @@ function encodeField(value: string): string {
 }
 
 function encodeRow(values: Partial<Record<Column, string>>): string {
-  return CSV_COLUMNS.map((col) => encodeField(values[col] ?? '')).join(CSV_SEPARATOR);
+  return CSV_COLUMNS.map((col) => encodeField(values[FILE_COLUMN[col]] ?? '')).join(CSV_SEPARATOR);
 }
 
 /**
@@ -96,7 +134,7 @@ export function serializeCellar(cellar: Cellar): string {
         enregistrement: RECORD_SHELF,
         clayette: String(i + 1),
         emplacements: String(shelf.capacite),
-        type: TYPE_CLAYETTE_LABELS[shelf.type],
+        type: shelf.type,
       }),
     );
   });
@@ -104,6 +142,7 @@ export function serializeCellar(cellar: Cellar): string {
     lines.push(
       encodeRow({
         enregistrement: RECORD_BOTTLE,
+        id: b.id,
         clayette: String(b.clayette),
         rang: String(b.rang),
         chateau: b.chateau,
@@ -111,7 +150,7 @@ export function serializeCellar(cellar: Cellar): string {
         annee: b.annee === null ? '' : String(b.annee),
         cepages: joinCepages(b.cepages),
         robe: ROBE_LABELS[b.robe],
-        forme: FORME_LABELS[b.forme],
+        forme: b.forme,
         collection: b.collection ? 'oui' : 'non',
       }),
     );
@@ -265,8 +304,9 @@ function readRows(text: string, sep: string, firstLine = 1): CsvRows {
 /** Alias d'en-têtes, déjà normalisés par `norm` (minuscules, sans accents ni ponctuation). */
 const HEADER_ALIASES: Record<Column, readonly string[]> = {
   enregistrement: ['enregistrement', 'type enregistrement', 'type d enregistrement', 'type de ligne', 'record'],
+  id: ['id', 'identifiant', 'uuid', 'guid'],
   clayette: ['clayette', 'etagere', 'etage', 'tablette', 'niveau', 'shelf'],
-  rang: ['rang', 'position', 'pos', 'colonne', 'slot'],
+  rang: ['rang', 'place', 'position', 'pos', 'colonne', 'slot'],
   emplacements: [
     'emplacements',
     'nombre d emplacements',
@@ -321,7 +361,7 @@ const HEADER_ALIASES: Record<Column, readonly string[]> = {
 };
 
 const ALIAS_INDEX: ReadonlyMap<string, Column> = new Map(
-  CSV_COLUMNS.flatMap((col) => HEADER_ALIASES[col].map((alias): [string, Column] => [alias, col])),
+  COLUMNS.flatMap((col) => HEADER_ALIASES[col].map((alias): [string, Column] => [alias, col])),
 );
 
 /** « n° clayette », « numéro de rang », « no étagère »… → « clayette », « rang », « etagere ». */
@@ -354,6 +394,19 @@ function analyzeHeader(cells: readonly string[]): HeaderMap {
       unknown.push(cell.trim());
     }
   });
+  // « type » seul désigne le type d'enregistrement (clayette / bouteille) dès qu'une autre
+  // colonne porte le type de clayette (« type_clayette ») — c'est le format d'origine.
+  const types = columns.get('type');
+  if (types && types.length > 1 && !columns.has('enregistrement')) {
+    const bare = types.filter((index) => norm(cells[index] ?? '') === 'type');
+    if (bare.length > 0 && bare.length < types.length) {
+      columns.set('enregistrement', bare);
+      columns.set(
+        'type',
+        types.filter((index) => !bare.includes(index)),
+      );
+    }
+  }
   return { columns, unknown, width: cells.length };
 }
 
@@ -538,6 +591,8 @@ interface BottleDraft {
   /** Rang de la bouteille dans le fichier (base 0). */
   index: number;
   line: number;
+  /** Identifiant lu dans le fichier (`''` si absent). */
+  id: string;
   chateau: string;
   appellation: string;
   annee: number | null;
@@ -626,6 +681,19 @@ export function parseCellarCsv(text: string): CsvImportResult {
   }
   const { columns } = header;
   const dataRows = rows.slice(1);
+
+  // Colonne « type » sans « type_clayette » : c'est le type d'enregistrement si elle ne
+  // contient que « clayette » / « bouteille ».
+  const typeOnly = columns.get('type');
+  if (typeOnly && !columns.has('enregistrement')) {
+    const values = dataRows.flatMap((row) =>
+      typeOnly.map((index) => norm(row.cells[index] ?? '')).filter((value) => value !== ''),
+    );
+    if (values.length > 0 && values.every((v) => RECORD_SHELF_WORDS.has(v) || RECORD_BOTTLE_WORDS.has(v))) {
+      columns.set('enregistrement', typeOnly);
+      columns.delete('type');
+    }
+  }
 
   if (header.unknown.length > 0) {
     const names = header.unknown.map((name) => `« ${name} »`).join(', ');
@@ -790,6 +858,7 @@ export function parseCellarCsv(text: string): CsvImportResult {
     bottleDrafts.push({
       index: bottleDrafts.length,
       line: row.line,
+      id: cell(row, 'id').trim(),
       chateau,
       appellation,
       annee,
@@ -1022,8 +1091,15 @@ export function parseCellarCsv(text: string): CsvImportResult {
 
   // Les bouteilles replacées reprennent leur rang dans l'ordre du fichier.
   placed.sort((a, b) => a.draft.index - b.draft.index);
+  // L'identifiant du fichier est conservé s'il est exploitable et unique.
+  const seenIds = new Set<string>();
+  const bottleId = (id: string): string => {
+    if (id === '' || id.length > 80 || seenIds.has(id)) return newBottleId();
+    seenIds.add(id);
+    return id;
+  };
   const bottles: Bottle[] = placed.map(({ draft, forme, slot }) => ({
-    id: newBottleId(),
+    id: bottleId(draft.id),
     chateau: draft.chateau,
     appellation: draft.appellation,
     annee: draft.annee,

@@ -178,7 +178,10 @@ describe('lecture', () => {
     ]);
     expect(cellarStats(cellar)).toMatchObject({ capacite: 5, total: 2, libres: 3, collection: 1 });
     expect(cellarStats(cellar).parRobe).toMatchObject({ rouge: 1, blanc: 1, rose: 0 });
-    expect(cellarStats(defaultCellar())).toMatchObject({ capacite: 144, total: 0 });
+    expect(cellarStats(defaultCellar())).toMatchObject({ capacite: 139, total: 0 });
+    expect(defaultCellar().shelves.map((s) => `${s.capacite}${s.type[0]}`).join(' ')).toBe(
+      '13b 13b 13b 13b 13b 13b 13b 13b 13b 12b 10c',
+    );
   });
 });
 

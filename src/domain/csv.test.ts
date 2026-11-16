@@ -26,7 +26,22 @@ import {
 /* Outils                                                              */
 /* ------------------------------------------------------------------ */
 
-const HEADER = CSV_COLUMNS.join(';');
+/** En-tête de l'ancien format, toujours lu (les lignes de ces tests l'utilisent). */
+const LEGACY_COLUMNS = [
+  'enregistrement',
+  'clayette',
+  'rang',
+  'emplacements',
+  'type',
+  'chateau',
+  'appellation',
+  'annee',
+  'cepages',
+  'robe',
+  'forme',
+  'collection',
+] as const;
+const HEADER = LEGACY_COLUMNS.join(';');
 // Caractères invisibles, nommés pour rester lisibles dans le source.
 const BOM = String.fromCharCode(0xfeff);
 const NBSP = String.fromCharCode(0xa0);
@@ -262,6 +277,104 @@ const cellarArb: fc.Arbitrary<Cellar> = fc
 /* Écriture                                                            */
 /* ------------------------------------------------------------------ */
 
+describe('format « Bacchus SmartCellar » (fichier d’origine)', () => {
+  const ORIGINE =
+    'type;id;capacite;type_clayette;nom;appellation;millesime;cepages;robe;forme;clayette;place;collection\r\n' +
+    'clayette;;13;bordeaux;;;;;;;1;;\r\n' +
+    'clayette;;12;bourgogne;;;;;;;2;;\r\n' +
+    'clayette;;10;champagne;;;;;;;3;;\r\n' +
+    'bouteille;5b4de640-fb29-43e6-8a7c-3759285376fc;;;Château Tayac;Margaux;1975;Cabernet Sauvignon, Merlot, Petit Verdot;Rouge;bordeaux;1;2;oui\r\n' +
+    'bouteille;0a1b2c3d-0000-4000-8000-000000000001;;;Domaine Weinbach;Alsace;;;Blanc liquoreux;bourgogne;2;12;non\r\n' +
+    'bouteille;0a1b2c3d-0000-4000-8000-000000000002;;;Ruinart;Champagne;;;Rosé;champagne;3;10;non\r\n';
+
+  it('se lit sans avertissement : clayettes, positions, robes, formes, collection', () => {
+    const result = parseCellarCsv(ORIGINE);
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    expect(result.cellar?.shelves).toEqual([
+      { capacite: 13, type: 'bordeaux' },
+      { capacite: 12, type: 'bourgogne' },
+      { capacite: 10, type: 'champagne' },
+    ]);
+    expect(result.cellar?.bottles).toEqual([
+      {
+        id: '5b4de640-fb29-43e6-8a7c-3759285376fc',
+        chateau: 'Château Tayac',
+        appellation: 'Margaux',
+        annee: 1975,
+        cepages: ['Cabernet Sauvignon', 'Merlot', 'Petit Verdot'],
+        robe: 'rouge',
+        forme: 'bordeaux',
+        collection: true,
+        clayette: 1,
+        rang: 2,
+      },
+      {
+        id: '0a1b2c3d-0000-4000-8000-000000000001',
+        chateau: 'Domaine Weinbach',
+        appellation: 'Alsace',
+        annee: null,
+        cepages: [],
+        robe: 'blanc-liquoreux',
+        forme: 'bourgogne',
+        collection: false,
+        clayette: 2,
+        rang: 12,
+      },
+      {
+        id: '0a1b2c3d-0000-4000-8000-000000000002',
+        chateau: 'Ruinart',
+        appellation: 'Champagne',
+        annee: null,
+        cepages: [],
+        robe: 'rose',
+        forme: 'champagne',
+        collection: false,
+        clayette: 3,
+        rang: 10,
+      },
+    ]);
+  });
+
+  it('se réécrit à l’identique, identifiants compris', () => {
+    const result = parseCellarCsv(ORIGINE);
+    expect(serializeCellar(result.cellar!)).toBe(ORIGINE);
+  });
+
+  it('identifiant absent ou en double : un nouvel identifiant est attribué', () => {
+    const text =
+      'type;id;capacite;type_clayette;nom;appellation;millesime;cepages;robe;forme;clayette;place;collection\n' +
+      'clayette;;13;tout;;;;;;;1;;\n' +
+      'bouteille;abc;;;A;Margaux;2015;;Rouge;bordeaux;1;1;non\n' +
+      'bouteille;abc;;;B;Margaux;2016;;Rouge;bordeaux;1;2;non\n' +
+      'bouteille;;;;C;Margaux;2017;;Rouge;bordeaux;1;3;non\n';
+    const ids = parseCellarCsv(text).cellar!.bottles.map((b) => b.id);
+    expect(ids[0]).toBe('abc');
+    expect(new Set(ids).size).toBe(3);
+    expect(ids.every((id) => id.length > 0)).toBe(true);
+  });
+
+  it('« type » seul, sans « type_clayette », désigne l’enregistrement s’il ne contient que clayette / bouteille', () => {
+    const text =
+      'type;nom;appellation;millesime;robe;forme;clayette;place;capacite\n' +
+      'clayette;;;;;;1;;12\n' +
+      'bouteille;A;Margaux;2015;Rouge;bordeaux;1;4;\n';
+    const result = parseCellarCsv(text);
+    expect(result.errors).toEqual([]);
+    expect(result.cellar?.shelves).toEqual([{ capacite: 12, type: 'tout' }]);
+    expect(result.cellar?.bottles.map((b) => [b.chateau, b.clayette, b.rang])).toEqual([['A', 1, 4]]);
+  });
+
+  it('l’ancien format reste lu (« type » y désigne le type de clayette)', () => {
+    const text = `${HEADER}\nclayette;1;;12;Bourgogne;;;;;;;\nbouteille;1;3;;;A;Meursault;2019;;Blanc;Bourgogne;non\n`;
+    const result = parseCellarCsv(text);
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    expect(result.cellar?.shelves).toEqual([{ capacite: 12, type: 'bourgogne' }]);
+    expect(result.cellar?.bottles[0]).toMatchObject({ chateau: 'A', rang: 3, forme: 'bourgogne', robe: 'blanc' });
+  });
+});
+
 describe('serializeCellar', () => {
   it("écrit l'exemple du contrat, lignes terminées par CRLF", () => {
     const cellar: Cellar = {
@@ -292,11 +405,11 @@ describe('serializeCellar', () => {
       ],
     };
     expect(serializeCellar(cellar)).toBe(
-      'enregistrement;clayette;rang;emplacements;type;chateau;appellation;annee;cepages;robe;forme;collection\r\n' +
-        'clayette;1;;12;Bordeaux;;;;;;;\r\n' +
-        'clayette;2;;12;Tout;;;;;;;\r\n' +
-        'bouteille;1;3;;;Château Margaux;Margaux;2015;Cabernet Sauvignon, Merlot;Rouge;Bordeaux;non\r\n' +
-        'bouteille;2;1;;;Dom Pérignon;Champagne;;Chardonnay, Pinot noir;Blanc;Champagne;oui\r\n',
+      'type;id;capacite;type_clayette;nom;appellation;millesime;cepages;robe;forme;clayette;place;collection\r\n' +
+        'clayette;;12;bordeaux;;;;;;;1;;\r\n' +
+        'clayette;;12;tout;;;;;;;2;;\r\n' +
+        'bouteille;t-1-3;;;Château Margaux;Margaux;2015;Cabernet Sauvignon, Merlot;Rouge;bordeaux;1;3;non\r\n' +
+        'bouteille;t-2-1;;;Dom Pérignon;Champagne;;Chardonnay, Pinot noir;Blanc;champagne;2;1;oui\r\n',
     );
   });
 
@@ -305,7 +418,7 @@ describe('serializeCellar', () => {
     const copie = structuredClone(cellar);
     const text = serializeCellar(cellar);
     expect(CSV_SEPARATOR).toBe(';');
-    expect(text.startsWith('enregistrement;')).toBe(true);
+    expect(text.startsWith('type;id;capacite;type_clayette;nom;')).toBe(true);
     expect(text.charCodeAt(0)).not.toBe(0xfeff);
     expect(cellar).toEqual(copie);
   });
@@ -324,19 +437,23 @@ describe('serializeCellar', () => {
       ],
     };
     const lines = serializeCellar(cellar).split('\r\n');
-    expect(lines.map((l) => l.split(';').slice(0, 6).join(';'))).toEqual([
-      'enregistrement;clayette;rang;emplacements;type;chateau',
-      'clayette;1;;10;Champagne;',
-      'clayette;2;;14;Bourgogne;',
-      'clayette;3;;12;Tout;',
-      'bouteille;1;9;;;A',
-      'bouteille;3;1;;;B',
-      'bouteille;3;2;;;C',
+    const pick = (l: string): string => {
+      const c = l.split(';');
+      return c.length < 13 ? l : [c[0], c[2], c[3], c[4], c[10], c[11]].join(';');
+    };
+    expect(lines.map(pick)).toEqual([
+      'type;capacite;type_clayette;nom;clayette;place',
+      'clayette;10;champagne;;1;',
+      'clayette;14;bourgogne;;2;',
+      'clayette;12;tout;;3;',
+      'bouteille;;;A;1;9',
+      'bouteille;;;B;3;1',
+      'bouteille;;;C;3;2',
       '',
     ]);
   });
 
-  it('écrit les libellés français des robes et des formes', () => {
+  it('écrit les robes en clair et les formes en minuscules, comme le fichier d’origine', () => {
     const cellar: Cellar = {
       shelves: shelves(1),
       bottles: [
@@ -345,8 +462,8 @@ describe('serializeCellar', () => {
       ],
     };
     const text = serializeCellar(cellar);
-    expect(text).toContain(';Blanc liquoreux;Autre;non\r\n');
-    expect(text).toContain(';Rosé;Bourgogne;non\r\n');
+    expect(text).toContain(';Blanc liquoreux;autre;1;1;non\r\n');
+    expect(text).toContain(';Rosé;bourgogne;1;2;non\r\n');
   });
 
   it('entoure de guillemets les champs qui le nécessitent et double les guillemets', () => {
@@ -364,7 +481,7 @@ describe('serializeCellar', () => {
     ];
     for (const [chateau, attendu] of cas) {
       const text = serializeCellar({ shelves: shelves(1), bottles: [bottle({ clayette: 1, rang: 1, chateau })] });
-      expect(text).toContain(`bouteille;1;1;;;${attendu};Margaux;2015;`);
+      expect(text).toContain(`bouteille;t-1-1;;;${attendu};Margaux;2015;`);
     }
   });
 
@@ -388,7 +505,7 @@ describe('serializeCellar', () => {
     ];
     for (const [chateau, attendu] of cas) {
       const text = serializeCellar({ shelves: shelves(1), bottles: [bottle({ clayette: 1, rang: 1, chateau })] });
-      expect(text).toContain(`bouteille;1;1;;;${attendu};Margaux;2015;`);
+      expect(text).toContain(`bouteille;t-1-1;;;${attendu};Margaux;2015;`);
     }
     // Les autres colonnes de texte sont neutralisées de la même façon.
     const text = serializeCellar({
@@ -1273,7 +1390,7 @@ describe('parseCellarCsv — erreurs bloquantes', () => {
     expectCoherent(result);
     expect(result.cellar).toBeNull();
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toMatch(/^En-tête non reconnu : la ligne 1 \(« .+ »…?\) ne nomme aucune colonne utile\. Colonnes attendues : enregistrement ; clayette ; /);
+    expect(result.errors[0]).toMatch(/^En-tête non reconnu : la ligne 1 \(« .+ »…?\) ne nomme aucune colonne utile\. Colonnes attendues : type ; id ; capacite ; type_clayette ; nom ; /);
   });
 
   it('aucune donnée après l’en-tête', () => {
@@ -1367,6 +1484,7 @@ describe('parseCellarCsv — robustesse', () => {
   it('le résultat respecte toujours validateCellar, même pour un tableau incohérent', () => {
     const enTete = fc.constantFrom(
       ...CSV_COLUMNS,
+      ...LEGACY_COLUMNS,
       'Château', 'Domaine', 'Millésime', 'N° clayette', 'Position', 'Couleur', 'Cépages', 'Prix', 'Note', '',
     );
     const cellule = fc.constantFrom(

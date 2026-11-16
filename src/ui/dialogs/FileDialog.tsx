@@ -8,6 +8,7 @@ import {
   importFile,
   importPastedText,
   loadDemo,
+  loadReference,
   openLinkedFile,
   reconnectLinkedFile,
   saveAsLinkedFile,
@@ -184,12 +185,19 @@ export function FileDialog(): ReactNode {
 
       <section className="dialog-section">
         <h3>
-          <Icon name="bottle" size={17} /> Exemple et remise à zéro
+          <Icon name="bottle" size={17} /> Caves fournies et remise à zéro
         </h3>
         <div className="button-row">
+          <button type="button" className="btn" onClick={loadReference}>
+            Charger la cave Bacchus (139 bouteilles)
+          </button>
           <button type="button" className="btn" onClick={loadDemo}>
             Charger la cave d'exemple
           </button>
+          <a className="btn btn-ghost" href="/cave-bacchus.csv" download="bacchus-smartcellar.csv">
+            <Icon name="download" size={17} />
+            Fichier CSV de la cave Bacchus
+          </a>
           <a className="btn btn-ghost" href="/exemple-cave.csv" download="exemple-cave.csv">
             <Icon name="download" size={17} />
             Modèle de fichier CSV

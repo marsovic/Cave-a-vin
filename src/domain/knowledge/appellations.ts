@@ -106,7 +106,7 @@ export const APPELLATIONS: AppellationInfo[] = [
   bdx('Margaux', r(MEDOC, 8, 25)),
   bdx('Pauillac', r(MEDOC, 10, 30)),
   bdx('Saint-Julien', r(MEDOC, 8, 25)),
-  bdx('Saint-Estèphe', r(MEDOC, 8, 25)),
+  bdx('Saint-Estèphe', r(MEDOC, 8, 25), ['Saint-Esthèphe']),
   bdx('Moulis-en-Médoc', r(MEDOC, 5, 15), ['Moulis']),
   bdx('Listrac-Médoc', r(MEDOC, 5, 15), ['Listrac']),
   bdx('Pessac-Léognan', {

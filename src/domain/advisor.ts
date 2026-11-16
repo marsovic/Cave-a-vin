@@ -1,5 +1,5 @@
 import { bottlesInReadingOrder } from './cellar';
-import { findAppellation, genericGarde, type AppellationInfo } from './knowledge';
+import { findWineAppellation, genericGarde, type AppellationInfo } from './knowledge';
 import { DISH_RULES, PROFILES, PROFILE_LABELS, type DishRule, type Profile } from './knowledge/pairing-rules';
 import { ROBE_LABELS } from './labels';
 import { norm, wineKey } from './normalize';
@@ -15,7 +15,7 @@ import type { Bottle, Cellar, DrinkStatus, DrinkWindow, WineFields } from './typ
  */
 export function estimateDrinkWindow(wine: WineFields): DrinkWindow | null {
   if (wine.annee === null) return null;
-  const info = wine.appellation.trim() ? findAppellation(wine.appellation) : undefined;
+  const info = findWineAppellation(wine);
   const known = info?.garde[wine.robe];
   const [debut, fin] = known ?? genericGarde(wine);
   const robe = ROBE_LABELS[wine.robe].toLowerCase();
@@ -94,7 +94,7 @@ const BLANCS_AROMATIQUES = ['gewurztraminer', 'muscat', 'viognier', 'pinot gris'
 const VINS_DOUX_ROUGES = new Set(['Banyuls', 'Maury', 'Porto']);
 
 /** Profil gustatif simplifié d'un vin, déduit de la robe, de l'appellation et des cépages. */
-export function wineProfile(wine: WineFields, info: AppellationInfo | undefined = findAppellation(wine.appellation)): Profile {
+export function wineProfile(wine: WineFields, info: AppellationInfo | undefined = findWineAppellation(wine)): Profile {
   const text = norm(`${wine.appellation} ${wine.chateau}`);
   const cepages = (wine.cepages.length > 0 ? wine.cepages : (info?.cepages[wine.robe] ?? [])).map(norm);
   const main = cepages[0] ?? '';
@@ -199,7 +199,7 @@ export function localPairing(plat: string, wine: WineFields): Pairing {
       source: 'local',
     };
   }
-  const info = wine.appellation.trim() ? findAppellation(wine.appellation) : undefined;
+  const info = findWineAppellation(wine);
   const profile = wineProfile(wine, info);
   const column = PROFILES.indexOf(profile);
   // Chaque élément est encadré d'espaces : les motifs de bonus sont cherchés par mots entiers.

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { loadDemo } from '../../state/persistence';
+import { loadDemo, loadReference } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { BrandIcon } from '../BrandIcon';
 import { Icon } from '../icons';
@@ -27,7 +27,22 @@ export function WelcomeDialog(): ReactNode {
         </p>
       </div>
       <div className="welcome-choices">
-        <button type="button" className="welcome-choice" data-autofocus onClick={() => done('config')}>
+        <button
+          type="button"
+          className="welcome-choice"
+          data-autofocus
+          onClick={() => {
+            setPrefs({ accueilVu: true });
+            loadReference();
+          }}
+        >
+          <Icon name="bottle" size={26} />
+          <span>
+            <strong>Charger la cave Bacchus</strong>
+            <span>L'armoire modélisée : 11 clayettes et ses 139 bouteilles.</span>
+          </span>
+        </button>
+        <button type="button" className="welcome-choice" onClick={() => done('config')}>
           <Icon name="shelves" size={26} />
           <span>
             <strong>Configurer ma cave</strong>
@@ -45,7 +60,7 @@ export function WelcomeDialog(): ReactNode {
           <Icon name="bottle" size={26} />
           <span>
             <strong>Essayer avec une cave d'exemple</strong>
-            <span>Une centaine de bouteilles pour découvrir toutes les fonctions.</span>
+            <span>Une cave fictive, avec des places libres, pour découvrir toutes les fonctions.</span>
           </span>
         </button>
         <button type="button" className="welcome-choice" onClick={() => done('fichier')}>
