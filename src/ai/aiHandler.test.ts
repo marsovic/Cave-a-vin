@@ -218,6 +218,18 @@ describe('POST /api/ai — contrôles', () => {
     expect((await handleAiRequest(sansOrigine({ 'x-dumbcellar-code': 'code-tres-secret' }), env, fetchMock)).status).toBe(200);
   });
 
+  it('accepte encore l\'en-tête d\'avant le renommage (ancienne version restée en cache)', async () => {
+    const env = { ...ENV, APP_ACCESS_CODE: 'code-tres-secret' };
+    const ancien = { 'x-bacchus-code': 'code-tres-secret' };
+    const etat = await handleAiRequest(new Request(URL_API, { headers: ancien }), env);
+    expect(((await etat.json()) as { codeOk: boolean }).codeOk).toBe(true);
+    expect((await handleAiRequest(post(BODY, ancien), env, fetchReturning(groqReply('ok')))).status).toBe(200);
+    expect((await handleAiRequest(post(BODY, { 'x-bacchus-code': 'faux' }), env, fetchReturning())).status).toBe(401);
+    // Le nouvel en-tête prime s'ils sont tous deux présents.
+    const deux = { 'x-dumbcellar-code': 'faux', 'x-bacchus-code': 'code-tres-secret' };
+    expect((await handleAiRequest(post(BODY, deux), env, fetchReturning())).status).toBe(401);
+  });
+
   it('limite le débit par adresse : requêtes IA et codes d\'accès erronés', async () => {
     resetRateLimits();
     const fetchMock = vi.fn<AiFetch>(async () => groqReply('ok'));

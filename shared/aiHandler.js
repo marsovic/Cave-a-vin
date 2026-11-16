@@ -15,6 +15,16 @@ export const MAX_BODY_BYTES = 4 * 1024 * 1024;
 export const UPSTREAM_TIMEOUT_MS = 55_000;
 /** En-tête portant le code d'accès du déploiement. */
 export const ACCESS_CODE_HEADER = 'x-dumbcellar-code';
+/**
+ * En-tête envoyé par les versions de l'application antérieures à son renommage. Une telle version
+ * peut rester en cache (PWA) quelque temps après un déploiement : son code d'accès reste accepté.
+ */
+const LEGACY_ACCESS_CODE_HEADER = 'x-bacchus-code';
+
+/** Code d'accès joint à la requête (`''` s'il n'y en a pas). */
+function givenCode(request) {
+  return (request.headers.get(ACCESS_CODE_HEADER) ?? request.headers.get(LEGACY_ACCESS_CODE_HEADER) ?? '').trim();
+}
 
 function jsonResponse(status, payload, extraHeaders) {
   return new Response(JSON.stringify(payload), {
@@ -111,7 +121,7 @@ function tooManyResponse(seconds, message) {
 }
 
 function codeMatches(request, expected) {
-  const given = (request.headers.get(ACCESS_CODE_HEADER) ?? '').trim();
+  const given = givenCode(request);
   return timingSafeEqualStrings(given, expected);
 }
 
@@ -140,7 +150,7 @@ async function handlePost(request, env, fetchImpl, options) {
   }
   if (accessCode && !codeMatches(request, accessCode)) {
     overLimit('code', request, CODE_MAX_FAILURES, CODE_WINDOW_MS);
-    const given = (request.headers.get(ACCESS_CODE_HEADER) ?? '').trim();
+    const given = givenCode(request);
     return errorResponse(
       401,
       'code-acces',
@@ -272,7 +282,7 @@ export async function handleAiRequest(request, env, fetchImpl = fetch, options) 
   try {
     if (request.method === 'GET') {
       const accessCode = envValue(env, 'APP_ACCESS_CODE');
-      const given = (request.headers.get(ACCESS_CODE_HEADER) ?? '').trim();
+      const given = givenCode(request);
       // Un code erroné compte comme un essai ; au-delà de la limite, plus aucune vérification.
       let codeOk = accessCode === '';
       if (accessCode && !overLimit('code', request, CODE_MAX_FAILURES, CODE_WINDOW_MS, false)) {

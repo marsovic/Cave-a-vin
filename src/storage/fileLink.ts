@@ -132,8 +132,10 @@ async function migrateLegacyHandle(): Promise<FileHandleLike | null> {
 const indexedDbStore: HandleStore = {
   async get() {
     try {
-      const handle = asHandle(await idbRun<unknown>('readonly', (s) => s.get(HANDLE_KEY)));
-      return handle ?? (await migrateLegacyHandle());
+      const read = async (): Promise<FileHandleLike | null> =>
+        asHandle(await idbRun<unknown>('readonly', (s) => s.get(HANDLE_KEY)));
+      // Reprise sans résultat : une autre fenêtre vient peut-être de la faire, d'où la relecture.
+      return (await read()) ?? (await migrateLegacyHandle()) ?? (await read());
     } catch {
       return null;
     }
