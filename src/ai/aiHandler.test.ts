@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { MAX_BODY_BYTES, handleAiRequest, timingSafeEqualStrings } from '../../shared/aiHandler.js';
+import { MAX_BODY_BYTES, handleAiRequest, resetRateLimits, timingSafeEqualStrings } from '../../shared/aiHandler.js';
 import type { AiFetch, AiHandlerEnv } from '../../shared/aiHandler.js';
 
 const KEY = 'gsk_cle_secrete_du_serveur';
@@ -203,13 +203,40 @@ describe('POST /api/ai — contrôles', () => {
     expect((await handleAiRequest(request, ENV, fetchReturning(groqReply('ok')))).status).toBe(200);
   });
 
-  it('accepte une requête sans en-tête Origin (outil en ligne de commande)', async () => {
-    const request = new Request(URL_API, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(BODY),
-    });
-    expect((await handleAiRequest(request, ENV, fetchReturning(groqReply('ok')))).status).toBe(200);
+  it('sans en-tête Origin (script, curl) : refusé, sauf avec le code d\'accès du déploiement', async () => {
+    const sansOrigine = (headers: Record<string, string> = {}): Request =>
+      new Request(URL_API, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...headers },
+        body: JSON.stringify(BODY),
+      });
+    const fetchMock = fetchReturning(groqReply('ok'));
+    expect((await handleAiRequest(sansOrigine(), ENV, fetchMock)).status).toBe(403);
+    const env = { ...ENV, APP_ACCESS_CODE: 'code-tres-secret' };
+    expect((await handleAiRequest(sansOrigine(), env, fetchMock)).status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect((await handleAiRequest(sansOrigine({ 'x-bacchus-code': 'code-tres-secret' }), env, fetchMock)).status).toBe(200);
+  });
+
+  it('limite le débit par adresse : requêtes IA et codes d\'accès erronés', async () => {
+    resetRateLimits();
+    const fetchMock = vi.fn<AiFetch>(async () => groqReply('ok'));
+    const ip = { 'x-forwarded-for': '203.0.113.7' };
+    let last = 200;
+    for (let i = 0; i < 41; i++) last = (await handleAiRequest(post(BODY, ip), ENV, fetchMock)).status;
+    expect(last).toBe(429);
+    expect((await handleAiRequest(post(BODY, { 'x-forwarded-for': '203.0.113.8' }), ENV, fetchMock)).status).toBe(200);
+
+    resetRateLimits();
+    const env = { ...ENV, APP_ACCESS_CODE: 'code-tres-secret' };
+    const essai = (code: string): Promise<Response> => handleAiRequest(post(BODY, { ...ip, 'x-bacchus-code': code }), env, fetchMock);
+    for (let i = 0; i < 8; i++) expect((await essai(`faux-${i}`)).status).toBe(401);
+    // Limite atteinte : même le bon code est refusé pendant la fenêtre.
+    expect((await essai('faux-9')).status).toBe(401);
+    const bloque = await essai('code-tres-secret');
+    expect(bloque.status).toBe(429);
+    expect(((await bloque.json()) as { error: { code: string; retryAfter: number } }).error).toMatchObject({ code: 'quota' });
+    resetRateLimits();
   });
 
   it('400 pour un corps qui n\'est pas du JSON', async () => {

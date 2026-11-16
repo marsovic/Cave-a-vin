@@ -39,6 +39,8 @@ function useShortcuts(): void {
         return;
       }
       if (e.key === 'Escape') {
+        // Déjà traitée ailleurs (fermeture du menu, par exemple).
+        if (e.defaultPrevented) return;
         if (s.mode.kind !== 'normal') {
           s.cancelMode();
         } else if (s.view !== 'recherche') {
@@ -57,8 +59,15 @@ function useShortcuts(): void {
         return;
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && s.mode.kind === 'normal') {
+        // Uniquement si l'emplacement qui a le focus est bien celui que désigne le formulaire.
         const active = document.activeElement as HTMLElement | null;
-        if (active?.classList.contains('slot') && computeTarget(s.cellar, s.form).kind === 'bouteille') {
+        const target = computeTarget(s.cellar, s.form);
+        if (
+          active?.classList.contains('slot') &&
+          target.kind === 'bouteille' &&
+          target.slot &&
+          active.dataset.key === `${target.slot.clayette}:${target.slot.rang}`
+        ) {
           e.preventDefault();
           s.removeTarget();
         }

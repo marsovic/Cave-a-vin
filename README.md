@@ -89,6 +89,8 @@ Deux façons d'activer l'IA :
 | `GROQ_MODEL_VISION` | lecture des étiquettes | `qwen/qwen3.8-27b` |
 | `GROQ_MODEL_WEB` | recherche web intégrée (`browser_search`) | `openai/gpt-oss-120b` |
 
+Le relais `/api/ai` n'accepte que les demandes venant du site lui-même (en-tête `Origin`), limite le débit par adresse (40 demandes par minute, 8 codes d'accès erronés par dix minutes) et ne choisit jamais le modèle d'après la demande. Ces protections sont « au mieux » (compteurs en mémoire, par instance) : pour un site dont l'adresse circule, définissez un `APP_ACCESS_CODE` long.
+
 Groq retire régulièrement des modèles (le modèle de vision est en « preview ») : si l'assistant signale un modèle indisponible, changez la variable correspondante — la liste à jour est sur <https://console.groq.com/docs/models>. Ce qui est envoyé à l'IA : la liste des vins hors collection (château, appellation, millésime, robe, cépages), le plat saisi, ou la photo de l'étiquette ; jamais le fichier complet ni vos réglages.
 
 ## Installer et lancer en local

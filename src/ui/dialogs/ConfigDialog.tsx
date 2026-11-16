@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { shelfChangeBlockers } from '../../domain/cellar';
 import { TYPE_CLAYETTE_LABELS, formatSlotShort, formatWine } from '../../domain/labels';
 import { SHELF_LIMITS, TYPES_CLAYETTE, type Shelf, type TypeClayette } from '../../domain/types';
@@ -8,6 +8,48 @@ import { Modal } from './Modal';
 
 function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+/**
+ * Nombre d'emplacements : la saisie reste libre pendant la frappe (on peut effacer puis
+ * retaper « 13 ») ; la valeur n'est bornée qu'en quittant le champ.
+ */
+function NumberField({
+  value,
+  onCommit,
+  label,
+}: {
+  value: number;
+  onCommit: (value: number) => void;
+  label: string;
+}): ReactNode {
+  const min = SHELF_LIMITS.minCapacity;
+  const max = SHELF_LIMITS.maxCapacity;
+  const [raw, setRaw] = useState(String(value));
+  useEffect(() => setRaw(String(value)), [value]);
+  return (
+    <input
+      className="input config-num"
+      type="number"
+      inputMode="numeric"
+      min={min}
+      max={max}
+      value={raw}
+      onChange={(e) => {
+        const text = e.target.value;
+        setRaw(text);
+        const n = Number(text);
+        if (text !== '' && Number.isInteger(n) && n >= min && n <= max) onCommit(n);
+      }}
+      onBlur={() => {
+        const n = Math.round(Number(raw));
+        const next = raw.trim() === '' || Number.isNaN(n) ? value : clamp(n, min, max);
+        setRaw(String(next));
+        if (next !== value) onCommit(next);
+      }}
+      aria-label={label}
+    />
+  );
 }
 
 /** Configuration de la cave : nombre de clayettes, emplacements et type de chacune. */
@@ -105,15 +147,7 @@ export function ConfigDialog(): ReactNode {
       <div className="config-all">
         <span className="field-label">Régler toutes les clayettes d'un coup</span>
         <div className="config-all-row">
-          <input
-            className="input config-num"
-            type="number"
-            min={SHELF_LIMITS.minCapacity}
-            max={SHELF_LIMITS.maxCapacity}
-            value={allCap}
-            onChange={(e) => setAllCap(Number(e.target.value))}
-            aria-label="Emplacements par clayette"
-          />
+          <NumberField value={allCap} onCommit={setAllCap} label="Emplacements par clayette" />
           <select
             className="select"
             value={allType}
@@ -157,19 +191,10 @@ export function ConfigDialog(): ReactNode {
             <tr key={i} data-blocked={blockedShelves.has(i + 1) ? '' : undefined}>
               <th scope="row">{i + 1}</th>
               <td>
-                <input
-                  className="input config-num"
-                  type="number"
-                  inputMode="numeric"
-                  min={SHELF_LIMITS.minCapacity}
-                  max={SHELF_LIMITS.maxCapacity}
+                <NumberField
                   value={shelf.capacite}
-                  onChange={(e) =>
-                    update(i, {
-                      capacite: clamp(Number(e.target.value) || 1, SHELF_LIMITS.minCapacity, SHELF_LIMITS.maxCapacity),
-                    })
-                  }
-                  aria-label={`Emplacements de la clayette ${i + 1}`}
+                  onCommit={(capacite) => update(i, { capacite })}
+                  label={`Emplacements de la clayette ${i + 1}`}
                 />
               </td>
               <td>

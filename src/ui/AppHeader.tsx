@@ -95,7 +95,11 @@ export function AppHeader(): ReactNode {
     if (!menuOpen) return;
     const close = (e: Event): void => {
       if (e instanceof KeyboardEvent) {
-        if (e.key === 'Escape') setMenuOpen(false);
+        if (e.key === 'Escape') {
+          // Échap ferme le menu, et rien d'autre (pas d'annulation du mode en cours).
+          e.preventDefault();
+          setMenuOpen(false);
+        }
         return;
       }
       if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);

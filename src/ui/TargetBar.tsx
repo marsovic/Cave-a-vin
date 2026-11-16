@@ -64,10 +64,10 @@ export function TargetBar(): ReactNode {
         modifiez les champs puis enregistrez.
       </>
     );
-  } else if (target.erreur) {
+  } else if (target.erreur && target.kind !== 'bouteille') {
     tone = 'erreur';
     text = target.erreur;
-  } else if (view === 'libres' && !locked) {
+  } else if (view === 'libres' && !locked && target.kind !== 'bouteille') {
     const free = freeSlotsForForm(cellar, form);
     tone = 'cible';
     text = (

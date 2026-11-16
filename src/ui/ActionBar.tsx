@@ -18,6 +18,9 @@ interface ActionProps {
 
 function Action({ icon, label, hint, onClick, disabled, active, primary, badge }: ActionProps): ReactNode {
   const toast = useStore((s) => s.toast);
+  // Opération en cours (ajout, déplacement, guidage…) : c'est elle qui bloque, pas un critère manquant.
+  const locked = useStore((s) => s.mode.kind !== 'normal');
+  const why = disabled && locked ? "Terminez ou annulez d'abord l'opération en cours." : hint;
   return (
     <button
       type="button"
@@ -26,8 +29,8 @@ function Action({ icon, label, hint, onClick, disabled, active, primary, badge }
       aria-pressed={active}
       // Un bouton indisponible reste cliquable : il explique alors ce qu'il attend.
       aria-disabled={disabled ? true : undefined}
-      onClick={() => (disabled ? toast('info', hint) : onClick())}
-      title={hint}
+      onClick={() => (disabled ? toast('info', why) : onClick())}
+      title={why}
       aria-label={badge !== undefined && badge > 1 ? `${label} (${badge})` : label}
     >
       <span className="action-icon">
@@ -59,10 +62,11 @@ export function ActionBar(): ReactNode {
 
   const target = useMemo(() => computeTarget(cellar, form), [cellar, form]);
   const locked = mode.kind !== 'normal';
-  const n = locked ? 0 : target.bottles.length;
+  const bottles = locked ? [] : target.bottles;
+  const n = bottles.length;
   const canAdd = canDescribeWine(form);
   const hasPlat = plat.trim().length > 0;
-  const toClass = target.bottles.filter((b) => !b.collection).length;
+  const toClass = bottles.filter((b) => !b.collection).length;
   const toUnclass = n - toClass;
   const empty = cellar.bottles.length === 0;
 

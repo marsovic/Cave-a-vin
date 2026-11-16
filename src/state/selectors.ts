@@ -66,10 +66,14 @@ export function freeSlotsForForm(cellar: Cellar, form: Criteria): SlotRef[] {
   const occ = occupancy(cellar);
   const clayette = parsePositiveInt(form.clayette);
   const rang = parsePositiveInt(form.rang);
+  const hasClayette = clayette !== null && !Number.isNaN(clayette);
+  const hasRang = rang !== null && !Number.isNaN(rang);
+  // Clayette + rang désignent un emplacement précis : ce n'est pas un filtre sur les places libres.
+  const designation = hasClayette && hasRang;
   return allSlots(cellar).filter((slot) => {
     if (occ.has(slotKey(slot))) return false;
-    if (clayette !== null && !Number.isNaN(clayette) && slot.clayette !== clayette) return false;
-    if (rang !== null && !Number.isNaN(rang) && slot.rang !== rang) return false;
+    if (!designation && hasClayette && slot.clayette !== clayette) return false;
+    if (!designation && hasRang && slot.rang !== rang) return false;
     if (form.forme && !isCompatible(form.forme, cellar.shelves[slot.clayette - 1]!.type)) return false;
     return true;
   });

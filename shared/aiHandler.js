@@ -69,6 +69,47 @@ function isSameOrigin(request) {
   return originHost !== '' && originHost === host;
 }
 
+/* ---------- Limitation de débit (au mieux : en mémoire, par instance du serveur) ---------- */
+
+const RATE_WINDOW_MS = 60_000;
+/** Requêtes IA par minute et par adresse : large pour un usage normal (une analyse = quelques lots). */
+const RATE_MAX_POSTS = 40;
+const CODE_WINDOW_MS = 10 * 60_000;
+/** Codes d'accès erronés tolérés par adresse sur dix minutes (contre l'essai systématique). */
+const CODE_MAX_FAILURES = 8;
+const counters = new Map();
+
+function clientAddress(request) {
+  const forwarded = request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '';
+  return (forwarded.split(',')[0] ?? '').trim();
+}
+
+/** Secondes à attendre si la limite est dépassée, sinon 0. Sans adresse connue : pas de limite. */
+function overLimit(bucket, request, max, windowMs, count = true) {
+  const address = clientAddress(request);
+  if (!address) return 0;
+  const id = `${bucket}:${address}`;
+  const now = Date.now();
+  let entry = counters.get(id);
+  if (!entry || now >= entry.reset) {
+    if (!count) return 0;
+    if (counters.size > 5000) counters.clear();
+    entry = { count: 0, reset: now + windowMs };
+    counters.set(id, entry);
+  }
+  if (count) entry.count += 1;
+  return entry.count > max ? Math.max(1, Math.ceil((entry.reset - now) / 1000)) : 0;
+}
+
+/** Tests : remet les compteurs à zéro. */
+export function resetRateLimits() {
+  counters.clear();
+}
+
+function tooManyResponse(seconds, message) {
+  return jsonResponse(429, { error: { code: 'quota', message, retryAfter: seconds } }, { 'retry-after': String(seconds) });
+}
+
 function codeMatches(request, expected) {
   const given = (request.headers.get(ACCESS_CODE_HEADER) ?? '').trim();
   return timingSafeEqualStrings(given, expected);
@@ -83,14 +124,22 @@ function modelsFromEnv(env) {
 }
 
 async function handlePost(request, env, fetchImpl, options) {
-  // (a) Même origine : un autre site ne doit pas pouvoir consommer la clé du serveur.
-  if (!isSameOrigin(request)) {
+  // (a) Même origine : un autre site ne doit pas pouvoir consommer la clé du serveur. Un navigateur
+  // envoie toujours Origin avec un POST ; sans cet en-tête (script, curl), seul un code d'accès
+  // valide ouvre le relais.
+  const accessCode = envValue(env, 'APP_ACCESS_CODE');
+  const hasOrigin = request.headers.get('origin') !== null;
+  if (hasOrigin ? !isSameOrigin(request) : !(accessCode && codeMatches(request, accessCode))) {
     return errorResponse(403, 'indisponible', 'Requête refusée : elle ne provient pas de l\'application.');
   }
 
   // (b) Code d'accès du déploiement.
-  const accessCode = envValue(env, 'APP_ACCESS_CODE');
+  const blocked = overLimit('code', request, CODE_MAX_FAILURES, CODE_WINDOW_MS, false);
+  if (accessCode && blocked) {
+    return tooManyResponse(blocked, 'Trop de codes d\'accès erronés. Réessayez dans quelques minutes.');
+  }
   if (accessCode && !codeMatches(request, accessCode)) {
+    overLimit('code', request, CODE_MAX_FAILURES, CODE_WINDOW_MS);
     const given = (request.headers.get(ACCESS_CODE_HEADER) ?? '').trim();
     return errorResponse(
       401,
@@ -100,6 +149,9 @@ async function handlePost(request, env, fetchImpl, options) {
         : 'Ce serveur demande un code d\'accès : saisissez-le dans les réglages de l\'assistant IA.',
     );
   }
+
+  const wait = overLimit('post', request, RATE_MAX_POSTS, RATE_WINDOW_MS);
+  if (wait) return tooManyResponse(wait, 'Trop de demandes à l\'assistant IA en peu de temps. Réessayez dans un instant.');
 
   // (c) Clé Groq du serveur.
   const apiKey = envValue(env, 'GROQ_API_KEY');
@@ -148,7 +200,11 @@ async function handlePost(request, env, fetchImpl, options) {
       method: 'POST',
       headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify(buildGroqBody(aiRequest, models)),
-      signal: AbortSignal.timeout(timeoutMs),
+      // Délai de garde, et abandon si le navigateur a annulé sa demande.
+      signal:
+        request.signal && typeof AbortSignal.any === 'function'
+          ? AbortSignal.any([request.signal, AbortSignal.timeout(timeoutMs)])
+          : AbortSignal.timeout(timeoutMs),
     });
     raw = await upstream.text();
   } catch (error) {
@@ -216,11 +272,18 @@ export async function handleAiRequest(request, env, fetchImpl = fetch, options) 
   try {
     if (request.method === 'GET') {
       const accessCode = envValue(env, 'APP_ACCESS_CODE');
+      const given = (request.headers.get(ACCESS_CODE_HEADER) ?? '').trim();
+      // Un code erroné compte comme un essai ; au-delà de la limite, plus aucune vérification.
+      let codeOk = accessCode === '';
+      if (accessCode && !overLimit('code', request, CODE_MAX_FAILURES, CODE_WINDOW_MS, false)) {
+        codeOk = codeMatches(request, accessCode);
+        if (!codeOk && given) overLimit('code', request, CODE_MAX_FAILURES, CODE_WINDOW_MS);
+      }
       return jsonResponse(200, {
         configured: envValue(env, 'GROQ_API_KEY') !== '',
         codeRequired: accessCode !== '',
         // Permet à l'interface de signaler tout de suite un code d'accès absent ou erroné.
-        codeOk: accessCode === '' || codeMatches(request, accessCode),
+        codeOk,
         models: modelsFromEnv(env),
       });
     }

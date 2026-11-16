@@ -61,19 +61,23 @@ export function HelpDialog(): ReactNode {
           </dd>
           <dt>Désigner une bouteille</dt>
           <dd>
-            Touchez-la dans le schéma : le formulaire affiche sa fiche (clayette et rang compris) et les actions
-            portent sur elle seule. Effacez la clayette et le rang pour viser toutes les bouteilles identiques.
+            Touchez-la dans le schéma : seuls la clayette et le rang s'inscrivent dans le formulaire, sa fiche
+            s'affiche, et les actions portent sur elle seule. « Reprendre dans le formulaire » (dans la fiche) recopie
+            sa description pour chercher ou ajouter les mêmes bouteilles.
           </dd>
           <dt>Ajouter</dt>
           <dd>
-            Décrivez la bouteille (ou scannez l'étiquette), indiquez la quantité, puis « Ajouter » : l'application
-            propose le meilleur emplacement (à côté du même vin, dans l'ordre des années, type de clayette respecté).
-            Touchez une autre place libre pour en changer, puis confirmez.
+            Décrivez la bouteille (ou scannez l'étiquette), puis « Ajouter » : l'application propose le meilleur
+            emplacement (à côté du même vin, dans l'ordre des années, type de clayette respecté). Dans le bandeau,
+            réglez la quantité (× n), touchez une autre place libre pour en changer, puis confirmez.
           </dd>
           <dt>Corriger</dt>
-          <dd>Désignez la bouteille, modifiez les champs, puis « Enregistrer » dans la barre de cible.</dd>
-          <dt>Retirer</dt>
-          <dd>Désignez la bouteille (ou plusieurs par critères), puis « Retirer ». « Annuler » la remet.</dd>
+          <dd>
+            Désignez la bouteille, « Corriger » dans sa fiche, modifiez les champs, puis « Enregistrer » dans le
+            bandeau.
+          </dd>
+          <dt>Supprimer</dt>
+          <dd>Désignez la bouteille (ou plusieurs par critères), puis « Supprimer ». « Annuler » la remet.</dd>
           <dt>Déplacer, échanger</dt>
           <dd>
             Désignez la bouteille, « Déplacer », puis touchez l'arrivée : une place libre (déplacement) ou une autre
@@ -81,7 +85,7 @@ export function HelpDialog(): ReactNode {
           </dd>
           <dt>Collection</dt>
           <dd>
-            « Collection » classe la bouteille désignée, ou toutes celles qui correspondent aux critères (restreignez
+            « Classer » classe la bouteille désignée, ou toutes celles qui correspondent aux critères (restreignez
             avec la clayette et le rang si besoin). « Déclasser » fait l'inverse. Les bouteilles de collection sont
             exclues des conseils de dégustation.
           </dd>
@@ -125,7 +129,8 @@ export function HelpDialog(): ReactNode {
       <section className="dialog-section">
         <h3>Où sont mes données ?</h3>
         <p>
-          Dans ce navigateur, et dans le fichier CSV que vous liez ou exportez (menu « Fichier »). Rien n'est stocké
+          Dans ce navigateur, et dans le fichier CSV que vous liez ou exportez (menu « Fichier » ; un classeur Excel
+          .xlsx au même format peut aussi être ouvert). Rien n'est stocké
           sur un serveur. Sur iPhone, ajoutez l'application à l'écran d'accueil (bouton Partager de Safari → « Sur
           l'écran d'accueil ») : elle s'ouvre en plein écran et ses données ne sont pas effacées par Safari. Pensez à
           enregistrer régulièrement le CSV dans OneDrive ou Fichiers.

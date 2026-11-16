@@ -41,6 +41,8 @@ export declare const ACCESS_CODE_HEADER: 'x-bacchus-code';
 
 /** Comparaison de chaînes en temps constant. */
 export declare function timingSafeEqualStrings(a: string, b: string): boolean;
+/** Tests : remet à zéro les compteurs de limitation de débit. */
+export declare function resetRateLimits(): void;
 
 /**
  * Traite une requête adressée à `/api/ai` (GET : état ; POST : relais vers Groq ;

@@ -128,7 +128,17 @@ export async function runAdvice(kind: AdviceKind): Promise<void> {
   store.setBusy({ label: 'Le sommelier consulte l\'assistant IA…', progress: null });
   try {
     const status = await getAiStatus(store.ai, abort.signal);
+    // Annulé pendant la vérification : on s'arrête sans rien afficher de plus.
+    if (abort.signal.aborted) {
+      clearPendingNote();
+      return;
+    }
     useStore.getState().setAiStatus(status);
+    // Erreur survenue en cours de route : les réponses déjà reçues sont gardées.
+    let partial: AiError | null = null;
+    const onPartialError = (error: AiError): void => {
+      partial = error;
+    };
     if (status.disponible) {
       try {
         if (kind !== 'accord') {
@@ -137,6 +147,7 @@ export async function runAdvice(kind: AdviceKind): Promise<void> {
             useStore.getState().setBusy({ label: 'Recherche des fenêtres de dégustation…', progress: 0 });
             const found = await fetchDrinkWindows(missing, year, store.ai, {
               signal: abort.signal,
+              onPartialError,
               onProgress: (done, total) =>
                 useStore.getState().setBusy({
                   label: 'Recherche des fenêtres de dégustation…',
@@ -160,6 +171,7 @@ export async function runAdvice(kind: AdviceKind): Promise<void> {
             useStore.getState().setBusy({ label: `Recherche des accords avec « ${plat} »…`, progress: 0 });
             pairings = await fetchPairings(plat, candidates, year, store.ai, {
               signal: abort.signal,
+              onPartialError,
               onProgress: (done, total) =>
                 useStore.getState().setBusy({
                   label: `Recherche des accords avec « ${plat} »…`,
@@ -175,6 +187,14 @@ export async function runAdvice(kind: AdviceKind): Promise<void> {
         }
         const message = error instanceof AiError ? error.message : 'L\'assistant IA n\'a pas répondu.';
         note = `${message} Conseils établis avec la base de connaissances locale.`;
+      }
+      const interrupted = partial as AiError | null;
+      if (interrupted && !note) {
+        if (interrupted.code === 'annule') {
+          clearPendingNote();
+          return;
+        }
+        note = `Réponse partielle de l'assistant IA : ${interrupted.message} Les autres vins sont évalués avec la base locale.`;
       }
     } else {
       note = `${status.message} Conseils établis avec la base de connaissances locale.`;
@@ -192,7 +212,12 @@ export async function runAdvice(kind: AdviceKind): Promise<void> {
     const current = useStore.getState().cellar;
     const items = buildItems(kind, current, plat, year, sources);
     lastSources = sources;
-    useStore.getState().setAdvice({ kind, plat, items, source: dominantSource(items), note, annee: year });
+    const report: AdviceReport = { kind, plat, items, source: dominantSource(items), note, annee: year };
+    // Passé à autre chose entre-temps (recherche, places libres, opération en cours) : le rapport
+    // est mis à jour sans reprendre l'écran.
+    const now = useStore.getState();
+    if (now.view === 'conseil' && now.mode.kind === 'normal') now.setAdvice(report);
+    else useStore.setState({ advice: report });
   } finally {
     if (controller === abort) controller = null;
     useStore.getState().setBusy(null);
@@ -220,6 +245,7 @@ export async function runScan(image: Blob): Promise<void> {
   store.setBusy({ label: 'Lecture de l\'étiquette…', progress: null });
   try {
     const status = await getAiStatus(store.ai, abort.signal);
+    if (abort.signal.aborted) return;
     useStore.getState().setAiStatus(status);
     if (!status.disponible) {
       useStore.getState().toast('erreur', `Le scan d'étiquette a besoin de l'assistant IA. ${status.message}`);

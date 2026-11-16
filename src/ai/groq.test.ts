@@ -151,12 +151,12 @@ describe('validateAiRequest', () => {
     expect(refusal({ messages: [{ role: 'user', content: 'x' }] })).toMatch(/rôle inconnu/);
   });
 
-  it('refuse 0 ou plus de 12 messages', () => {
-    expect(refusal({ role: 'texte', messages: [] })).toMatch(/1 à 12 messages/);
-    expect(refusal({ role: 'texte' })).toMatch(/1 à 12 messages/);
-    const many = Array.from({ length: 13 }, () => ({ role: 'user', content: 'x' }));
-    expect(refusal({ role: 'texte', messages: many })).toMatch(/1 à 12 messages/);
-    expect(validateAiRequest({ role: 'texte', messages: many.slice(0, 12) }).ok).toBe(true);
+  it('refuse 0 ou plus de 6 messages', () => {
+    expect(refusal({ role: 'texte', messages: [] })).toMatch(/1 à 6 messages/);
+    expect(refusal({ role: 'texte' })).toMatch(/1 à 6 messages/);
+    const many = Array.from({ length: 7 }, () => ({ role: 'user', content: 'x' }));
+    expect(refusal({ role: 'texte', messages: many })).toMatch(/1 à 6 messages/);
+    expect(validateAiRequest({ role: 'texte', messages: many.slice(0, 6) }).ok).toBe(true);
   });
 
   it('refuse un rôle de message inconnu, un message vide ou trop long', () => {
@@ -247,11 +247,11 @@ describe('buildGroqBody', () => {
     { role: 'system' as const, content: 'Réponds en JSON.' },
     { role: 'user' as const, content: 'Bonjour' },
   ];
-  const models: AiModels = { texte: 'm-texte', vision: 'm-vision', web: 'm-web' };
+  const models: AiModels = { texte: 'openai/gpt-oss-test', vision: 'm-vision', web: 'openai/gpt-oss-web' };
 
   it('rôle texte : champs exacts, valeurs par défaut', () => {
     expect(buildGroqBody({ role: 'texte', messages }, models)).toEqual({
-      model: 'm-texte',
+      model: 'openai/gpt-oss-test',
       messages,
       temperature: 0.2,
       max_completion_tokens: 4096,
@@ -262,7 +262,7 @@ describe('buildGroqBody', () => {
 
   it('rôle texte : schéma JSON strict', () => {
     expect(buildGroqBody({ role: 'texte', messages, json: SCHEMA, maxTokens: 900, temperature: 0.5 }, models)).toEqual({
-      model: 'm-texte',
+      model: 'openai/gpt-oss-test',
       messages,
       temperature: 0.5,
       max_completion_tokens: 900,
@@ -303,16 +303,32 @@ describe('buildGroqBody', () => {
       messages: visionMessages,
       temperature: 0.2,
       max_completion_tokens: 1200,
-      response_format: {
-        type: 'json_schema',
-        json_schema: { name: 'reponse', strict: true, schema: SCHEMA.schema },
-      },
+      // Modèle inconnu : JSON simple plutôt qu'un schéma strict qu'il pourrait refuser.
+      response_format: { type: 'json_object' },
     });
+  });
+
+  it('modèle personnalisé : ni paramètres de raisonnement, ni schéma strict', () => {
+    const custom: AiModels = { texte: 'autre/modele', vision: 'm-vision', web: 'autre/web' };
+    const body = buildGroqBody({ role: 'texte', messages, json: SCHEMA }, custom);
+    expect(body).not.toHaveProperty('reasoning_effort');
+    expect(body).not.toHaveProperty('include_reasoning');
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    expect(body.messages[0]).toEqual({ role: 'system', content: expect.stringContaining('JSON') });
+    expect(buildGroqBody({ role: 'web', messages }, custom)).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('modèles par défaut : schéma strict conservé pour le texte et la vision', () => {
+    for (const role of ['texte', 'vision'] as const) {
+      expect(buildGroqBody({ role, messages, json: SCHEMA }, undefined).response_format).toMatchObject({
+        type: 'json_schema',
+      });
+    }
   });
 
   it('rôle web : outil de recherche imposé, jamais de response_format', () => {
     const expected = {
-      model: 'm-web',
+      model: 'openai/gpt-oss-web',
       messages,
       tools: [{ type: 'browser_search' }],
       tool_choice: 'required',

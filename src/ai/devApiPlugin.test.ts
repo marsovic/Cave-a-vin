@@ -140,7 +140,7 @@ describe('plugin Vite devApi', () => {
   it('POST sans code d\'accès : 401, Groq n\'est pas appelé', async () => {
     const groq = vi.fn();
     vi.stubGlobal('fetch', groq);
-    const reply = await call('POST', '/api/ai', { 'content-type': 'application/json' }, '{}');
+    const reply = await call('POST', '/api/ai', { 'content-type': 'application/json', origin: `http://127.0.0.1:${port}` }, '{}');
     expect(reply.status).toBe(401);
     expect((JSON.parse(reply.body) as { error: { code: string } }).error.code).toBe('code-acces');
     expect(groq).not.toHaveBeenCalled();

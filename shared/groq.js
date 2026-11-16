@@ -23,7 +23,7 @@ export const DEFAULT_MODELS = Object.freeze({
 export const AI_ROLES = Object.freeze(['texte', 'vision', 'web']);
 
 export const AI_LIMITS = Object.freeze({
-  maxMessages: 12,
+  maxMessages: 6,
   maxTextChars: 24_000,
   maxParts: 8,
   maxImages: 2,
@@ -220,8 +220,20 @@ function mentionsJson(messages) {
   return false;
 }
 
-function responseFormat(json) {
+/** Modèles qui acceptent `reasoning_effort` / `include_reasoning` et les sorties `json_schema` strictes. */
+function isGptOss(model) {
+  return /^openai\/gpt-oss/i.test(model);
+}
+
+function supportsStrictSchema(model) {
+  return isGptOss(model) || model === DEFAULT_MODELS.texte || model === DEFAULT_MODELS.vision;
+}
+
+function responseFormat(json, model) {
   if (isPlainObject(json)) {
+    // Schéma strict seulement pour les modèles connus pour le gérer ; sinon JSON simple
+    // (le schéma est de toute façon décrit dans les consignes, et la réponse revalidée).
+    if (!supportsStrictSchema(model)) return { type: 'json_object' };
     return { type: 'json_schema', json_schema: { name: json.name, strict: true, schema: json.schema } };
   }
   if (json === true) return { type: 'json_object' };
@@ -245,12 +257,12 @@ export function buildGroqBody(request, models) {
       messages,
       tools: [{ type: 'browser_search' }],
       tool_choice: 'required',
-      reasoning_effort: 'low',
+      ...(isGptOss(model) ? { reasoning_effort: 'low' } : {}),
       max_completion_tokens: maxTokens,
     };
   }
 
-  const format = responseFormat(request.json);
+  const format = responseFormat(request.json, model);
   if (format && format.type === 'json_object' && !mentionsJson(messages)) {
     // Le mode JSON simple de Groq exige le mot « JSON » dans les messages.
     messages = [{ role: 'system', content: 'Réponds uniquement avec un objet JSON valide.' }, ...messages];
@@ -262,7 +274,7 @@ export function buildGroqBody(request, models) {
     temperature: request.temperature ?? DEFAULT_TEMPERATURE,
     max_completion_tokens: maxTokens,
   };
-  if (role === 'texte') {
+  if (role === 'texte' && isGptOss(model)) {
     body.reasoning_effort = 'low';
     body.include_reasoning = false;
   }
@@ -300,8 +312,10 @@ export function parseGroqResponse(json, role) {
     // tool_choice « required » impose la recherche ; une liste explicitement vide dit le contraire.
     web = Array.isArray(tools) ? tools.length > 0 : true;
   }
+  const content = role === 'web' ? stripCitations(raw) : raw.trim();
+  if (!content) throw new Error('L\'IA a renvoyé une réponse vide. Réessayez.');
   return {
-    content: role === 'web' ? stripCitations(raw) : raw.trim(),
+    content,
     modele: typeof json.model === 'string' ? json.model : '',
     web,
   };
