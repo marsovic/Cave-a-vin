@@ -128,7 +128,8 @@ function matchesRule(rule: DishRule, padded: string): boolean {
 
 /** Familles de plats reconnues dans une description libre. */
 export function recognizeDish(plat: string): DishRule[] {
-  const padded = ` ${norm(plat)} `;
+  // « pomme de terre » n'est pas un dessert aux pommes.
+  const padded = ` ${norm(plat)} `.replace(/ pommes? de terre /g, ' patate ');
   if (padded.trim() === '') return [];
   const found = DISH_RULES.filter((rule) => matchesRule(rule, padded));
   // « plateau de fromages » générique : ignoré si un fromage précis est reconnu ; idem pour les desserts.

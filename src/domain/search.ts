@@ -51,9 +51,9 @@ export function parseYearExpr(expr: string): YearFilter {
   let single: number | null = null;
   let none = false;
   // Normalise les séparateurs de plage (« 2010 à 2015 », « 2010 – 2015 », « 2010..2015 »).
+  // (uniquement entre deux nombres : « sans » ne doit pas devenir « s-ns »)
   const cleaned = raw
-    .replace(/\s*(?:à|a|au|–|—|\.\.+)\s*/gi, '-')
-    .replace(/\s*-\s*/g, '-')
+    .replace(/(\d)\s*(?:à|a|au|–|—|-|\.\.+)\s*(?=\d)/gi, '$1-')
     .replace(/([<>]=?)\s+/g, '$1');
   const parts = cleaned.split(/[,;\s]+/).filter(Boolean);
   for (const part of parts) {

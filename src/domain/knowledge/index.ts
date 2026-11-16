@@ -65,8 +65,7 @@ const EXTRA_CEPAGES = [
 /** Abréviations et synonymes courants → nom canonique (clés normalisées). */
 const SIMPLIFY: [RegExp, string][] = [
   [/\b(?:aoc|aop|aoq|doc|docg|igp|igt|do|doca)\b/g, ' '],
-  [/\bappellation\b.*?\b(?:controlee|protegee)\b/g, ' '],
-  [/\bappellation\b/g, ' '],
+  [/\b(?:appellation|d origine|origine|controlee|protegee)\b/g, ' '],
   [/\b1er\b/g, 'premier'],
   [/\b1ere\b/g, 'premiere'],
   [/\bst\b/g, 'saint'],

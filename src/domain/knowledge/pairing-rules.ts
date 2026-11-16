@@ -336,7 +336,7 @@ export const DISH_RULES: DishRule[] = [
   {
     id: 'gratin',
     label: 'les gratins et les plats familiaux',
-    mots: ['gratin', 'parmentier', 'pomme de terre', 'puree', 'frites', 'croque', 'endive', 'quiche', 'tourte', 'crepe', 'galette$', 'galettes$'],
+    mots: ['gratin', 'parmentier', 'patate', 'puree', 'frites', 'croque', 'endive', 'quiche', 'tourte', 'crepe', 'galette$', 'galettes$'],
     scores: [80, 80, 55, 58, 72, 40, 5, 62, 55, 0],
     bonus: [['beaujolais', 4], ['cotes du rhone', 4], ['savoie', 3]],
   },
