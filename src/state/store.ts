@@ -73,6 +73,8 @@ export interface AppState {
   reveal: { slot: SlotRef; nonce: number } | null;
   /** Panneau des résultats ouvert (utile sur téléphone, où il est repliable). */
   panelOpen: boolean;
+  /** Clayette agrandie dans la « loupe » (téléphone) et rang visé, ou `null`. */
+  loupe: SlotRef | null;
 
   /* ---------- formulaire ---------- */
   setField: <K extends keyof Criteria>(name: K, value: Criteria[K]) => void;
@@ -140,6 +142,7 @@ export interface AppState {
   toast: (kind: Toast['kind'], message: string, opts?: { undo?: boolean }) => void;
   dismissToast: (id: number) => void;
   setPanelOpen: (open: boolean) => void;
+  setLoupe: (slot: SlotRef | null) => void;
   /** Initialisation (appelée une fois par la couche de persistance). */
   hydrate: (patch: Partial<AppState>) => void;
 }
@@ -265,6 +268,7 @@ export const useStore = create<AppState>()((set, get) => {
     dialog: null,
     reveal: null,
     panelOpen: false,
+    loupe: null,
 
     /* ---------------- formulaire ---------------- */
 
@@ -856,6 +860,7 @@ export const useStore = create<AppState>()((set, get) => {
     toast: notify,
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
     setPanelOpen: (panelOpen) => set({ panelOpen }),
+    setLoupe: (loupe) => set({ loupe }),
     hydrate: (patch) => set(patch),
   };
 });

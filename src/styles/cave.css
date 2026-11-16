@@ -508,3 +508,81 @@
   box-shadow: 0 0 0 2px var(--cab-highlight), 0 0 6px 1px rgb(200 160 80 / 80%);
   border: 0;
 }
+
+/* ---------- Loupe de clayette (téléphone) ---------- */
+
+.loupe {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+
+.loupe-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px 0 10px;
+  font-size: var(--fs-s);
+}
+
+.loupe-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loupe-hint {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.loupe-row.cabinet {
+  --slot: 44px;
+  --slot-gap: 6px;
+  display: flex;
+  gap: var(--slot-gap);
+  margin: 0;
+  padding: 6px 8px 3px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+
+.loupe-row::-webkit-scrollbar {
+  display: none;
+}
+
+.loupe-cell {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  scroll-snap-align: center;
+}
+
+.loupe-rang {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--cab-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Emplacement visé par la loupe, dans la vue d'ensemble. */
+.slot[data-aimed]:not([data-selected]) {
+  outline: 1.5px dashed var(--cab-highlight);
+  outline-offset: 1px;
+  z-index: 2;
+}

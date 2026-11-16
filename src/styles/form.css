@@ -315,8 +315,14 @@
     display: initial;
   }
 
-  select.only-phone {
+  select.only-phone,
+  p.only-phone {
     display: block;
+  }
+
+  /* Pendant une opération en cours, la barre d'actions (inactive) laisse sa place au schéma. */
+  .app:not([data-mode='normal']) .action-bar {
+    display: none;
   }
 
   .target-bar {

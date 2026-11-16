@@ -271,10 +271,11 @@ export function ModeBanner(): ReactNode {
             ) : null}{' '}
             : touchez l'emplacement d'arrivée.
           </p>
-          <p className="banner-note">
+          <p className="banner-note only-desktop">
             Une place libre → la bouteille y est déplacée. Une autre bouteille → les deux sont échangées. Les
             emplacements hachurés ne conviennent pas à sa forme.
           </p>
+          <p className="banner-note only-phone">Place libre : déplacement. Autre bouteille : échange.</p>
         </div>
         <div className="banner-actions">
           <button type="button" className="btn btn-small" onClick={cancelMode} autoFocus>

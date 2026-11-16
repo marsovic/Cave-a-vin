@@ -317,10 +317,22 @@ async function phone(browser) {
   await shot(page, 'iphone-04-fiche');
   await page.locator('.target-list-toggle').click();
 
+  // Loupe : la clayette visée s'affiche en grand pour toucher l'emplacement exact.
+  check('loupe : la clayette de l\'emplacement touché est agrandie', await page.locator('.loupe').isVisible());
+  const cell = await page.locator('.loupe .slot').first().boundingBox();
+  check('loupe : cibles tactiles d\'au moins 44 px', cell.width >= 44 && cell.height >= 44, `${cell.width}×${cell.height}`);
   await action(page, 'Déplacer').click();
   await page.waitForSelector('.banner-mode');
+  // Dans la vue d'ensemble, un toucher ne fait que viser ; le déplacement se valide dans la loupe.
+  const freeKey = await page.locator('.cave-viewport .slot[data-marker="possible"]:not([data-robe])').first().getAttribute('data-key');
+  await page.locator(`.cave-viewport .slot[data-key="${freeKey}"]`).click();
+  check('loupe : viser dans la vue d\'ensemble ne déplace rien', (await page.locator('.banner-mode').count()) === 1);
   await shot(page, 'iphone-05-deplacement');
-  await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await page.locator(`.loupe .slot[data-key="${freeKey}"]`).click();
+  await page.waitForSelector('.banner-mode', { state: 'detached' });
+  const [fc, fr] = freeKey.split(':');
+  check('loupe : le toucher dans la loupe déplace la bouteille', (await readCellar(page)).bottles.some((b) => b.chateau === first.chateau && b.clayette === fc && b.rang === fr));
+  await page.locator('.loupe button[aria-label="Fermer la loupe"]').click();
 
   await action(page, 'Réorganiser').scrollIntoViewIfNeeded();
   await action(page, 'Réorganiser').click();

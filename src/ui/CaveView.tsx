@@ -1,4 +1,14 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import {
   FORME_LABELS,
   ROBE_LABELS,
@@ -7,10 +17,11 @@ import {
   formatSlotShort,
   formatWine,
 } from '../domain/labels';
-import type { DrinkStatus, Shelf } from '../domain/types';
+import type { DrinkStatus, Shelf, SlotRef } from '../domain/types';
 import { computeVisuals } from '../state/selectors';
 import { useStore } from '../state/store';
 import type { Prefs, SlotVisual } from '../state/types';
+import { Icon } from './icons';
 
 const STATUS_LABELS: Record<DrinkStatus, string> = {
   'trop-jeune': 'à attendre',
@@ -67,10 +78,13 @@ interface SlotProps {
   draggable: boolean;
   showYear: boolean;
   focusable: boolean;
+  /** Réaction au toucher (par défaut : désigner l'emplacement). */
+  onTap: (slot: SlotRef) => void;
+  /** Vise cet emplacement dans la loupe (repère discret dans la vue d'ensemble). */
+  aimed?: boolean;
 }
 
-const Slot = memo(function Slot({ v, shelf, draggable, showYear, focusable }: SlotProps): ReactNode {
-  const tapSlot = useStore((s) => s.tapSlot);
+const Slot = memo(function Slot({ v, shelf, draggable, showYear, focusable, onTap, aimed }: SlotProps): ReactNode {
   const dropBottle = useStore((s) => s.dropBottle);
   const b = v.bottle;
   const label = describe(v, shelf);
@@ -91,7 +105,8 @@ const Slot = memo(function Slot({ v, shelf, draggable, showYear, focusable }: Sl
       title={label}
       tabIndex={focusable ? 0 : -1}
       draggable={draggable && b !== null}
-      onClick={() => tapSlot(v.slot)}
+      data-aimed={aimed ? '' : undefined}
+      onClick={() => onTap(v.slot)}
       onDragStart={(e) => {
         if (!b) return;
         e.dataTransfer.setData('application/x-bacchus-bottle', b.id);
@@ -140,7 +155,9 @@ function sameSlotProps(a: SlotProps, b: SlotProps): boolean {
     a.shelf.type === b.shelf.type &&
     a.draggable === b.draggable &&
     a.showYear === b.showYear &&
-    a.focusable === b.focusable
+    a.focusable === b.focusable &&
+    a.onTap === b.onTap &&
+    a.aimed === b.aimed
   );
 }
 
@@ -157,6 +174,9 @@ export function CaveView(): ReactNode {
   const zoom = useStore((s) => s.prefs.zoom);
   const reveal = useStore((s) => s.reveal);
   const toggleShelf = useStore((s) => s.toggleShelf);
+  const tapSlot = useStore((s) => s.tapSlot);
+  const loupe = useStore((s) => s.loupe);
+  const setLoupe = useStore((s) => s.setLoupe);
   // Clayette servant de critère seul (sans rang) : son étiquette est marquée.
   const shelfFilter = form.clayette.trim() && !form.rang.trim() ? Number(form.clayette) : null;
 
@@ -232,11 +252,41 @@ export function CaveView(): ReactNode {
   const draggable = mode.kind === 'normal';
   const showYear = slotSize >= 23;
   const compactLabels = box.width > 0 && box.width < COMPACT_WIDTH;
+
+  // Téléphone : les emplacements de la vue d'ensemble sont petits. Les toucher amène la « loupe »
+  // sur la clayette visée ; quand un toucher déclenche une action (déplacement, choix d'une place),
+  // c'est dans la loupe qu'on la valide, sur des cibles de bonne taille.
+  const loupeModes = mode.kind === 'normal' || mode.kind === 'deplacement' || mode.kind === 'placement';
+  const loupeActive = compactLabels && zoom === 'auto' && loupeModes;
+  const aimOnly = loupeActive && mode.kind !== 'normal';
+  const onOverviewTap = useCallback(
+    (slot: SlotRef): void => {
+      if (loupeActive) setLoupe(slot);
+      if (!aimOnly) tapSlot(slot);
+    },
+    [loupeActive, aimOnly, setLoupe, tapSlot],
+  );
+  const onLoupeTap = useCallback(
+    (slot: SlotRef): void => {
+      setLoupe(slot);
+      tapSlot(slot);
+    },
+    [setLoupe, tapSlot],
+  );
+  const loupeShelf = loupeActive && loupe ? cellar.shelves[loupe.clayette - 1] : undefined;
+  const loupeRow = loupeShelf && loupe ? visuals[loupe.clayette - 1] : undefined;
+  const loupeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!loupe) return;
+    const cell = loupeRef.current?.querySelector<HTMLElement>(`[data-key="${loupe.clayette}:${loupe.rang}"]`);
+    cell?.scrollIntoView?.({ inline: 'center', block: 'nearest' });
+  }, [loupe, loupeShelf]);
   // Un seul emplacement est dans l'ordre de tabulation (les flèches font le reste).
   const selectedKey = visuals.flat().find((v) => v.selected)?.slot;
   const focusKey = selectedKey ?? { clayette: 1, rang: 1 };
 
   return (
+    <>
     <div className="cave-viewport" ref={viewportRef}>
       <div
         className="cabinet"
@@ -273,6 +323,8 @@ export function CaveView(): ReactNode {
                     draggable={draggable}
                     showYear={showYear}
                     focusable={v.slot.clayette === focusKey.clayette && v.slot.rang === focusKey.rang}
+                    onTap={onOverviewTap}
+                    aimed={Boolean(loupeShelf && loupe && sameAim(loupe, v.slot))}
                   />
                 ))}
               </div>
@@ -281,5 +333,55 @@ export function CaveView(): ReactNode {
         })}
       </div>
     </div>
+    {loupeShelf && loupeRow && loupe ? (
+      <div className="loupe" role="group" aria-label={`Loupe : clayette ${loupe.clayette}`}>
+        <div className="loupe-head">
+          <span className="loupe-title">
+            Clayette <strong>{loupe.clayette}</strong>
+            <span className="muted"> · {TYPE_CLAYETTE_LABELS[loupeShelf.type]}</span>
+            {aimOnly ? <span className="loupe-hint"> — choisissez ici</span> : null}
+          </span>
+          <button
+            type="button"
+            className="btn btn-small btn-icon btn-ghost"
+            onClick={() => setLoupe({ clayette: Math.max(1, loupe.clayette - 1), rang: loupe.rang })}
+            disabled={loupe.clayette <= 1}
+            aria-label="Clayette du dessus"
+          >
+            <Icon name="chevronUp" size={16} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-small btn-icon btn-ghost"
+            onClick={() => setLoupe({ clayette: Math.min(shelfCount, loupe.clayette + 1), rang: loupe.rang })}
+            disabled={loupe.clayette >= shelfCount}
+            aria-label="Clayette du dessous"
+          >
+            <Icon name="chevronDown" size={16} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-small btn-icon btn-ghost"
+            onClick={() => setLoupe(null)}
+            aria-label="Fermer la loupe"
+          >
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="loupe-row cabinet" ref={loupeRef} data-mode={mode.kind}>
+          {loupeRow.map((v) => (
+            <div className="loupe-cell" key={v.slot.rang}>
+              <Slot v={v} shelf={loupeShelf} draggable={false} showYear focusable={false} onTap={onLoupeTap} />
+              <span className="loupe-rang">R{v.slot.rang}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : null}
+    </>
   );
+}
+
+function sameAim(a: SlotRef, b: SlotRef): boolean {
+  return a.clayette === b.clayette && a.rang === b.rang;
 }
