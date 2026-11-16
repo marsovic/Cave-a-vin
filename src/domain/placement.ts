@@ -13,7 +13,7 @@ export interface PlacementSuggestion {
   message: string;
 }
 
-type Wine = Pick<WineFields, 'chateau' | 'annee' | 'forme'>;
+type Wine = Pick<WineFields, 'chateau' | 'annee' | 'forme'> & { appellation?: string };
 
 interface Candidate {
   slot: SlotRef;
@@ -261,20 +261,50 @@ export function suggestSlots(
     return { slots: [best.slot], complete: true, message: explain(best, cellar, wine) };
   }
 
-  // Plusieurs bouteilles : on cherche d'abord une suite contiguë sur une même clayette,
-  // puis des suites de plus en plus courtes pour celles qui restent.
-  const chosen: Candidate[] = [];
-  let remaining = [...pool];
-  let runs = 0;
-  while (chosen.length < wanted && remaining.length > 0) {
-    let run: Candidate[] | null = null;
-    for (let length = wanted - chosen.length; length >= 1 && !run; length--) run = bestRun(remaining, length);
-    if (!run) break;
-    runs += 1;
-    chosen.push(...run);
-    const taken = new Set(run.map((c) => slotKey(c.slot)));
-    remaining = remaining.filter((c) => !taken.has(slotKey(c.slot)));
-  }
+  // Plusieurs bouteilles. Deux stratégies sont comparées :
+  //  A. la plus longue suite contiguë d'abord (puis des suites plus courtes pour le reste) ;
+  //  B. d'abord la place voisine du même vin, étendue à ses voisines libres, puis le reste comme en A.
+  // Le total des notes, majoré d'un bonus par paire de bouteilles côte à côte, départage.
+  const byRuns = (candidates: Candidate[], count: number): Candidate[] => {
+    const out: Candidate[] = [];
+    let left = [...candidates];
+    while (out.length < count && left.length > 0) {
+      let run: Candidate[] | null = null;
+      for (let length = count - out.length; length >= 1 && !run; length--) run = bestRun(left, length);
+      if (!run) break;
+      out.push(...run);
+      const taken = new Set(run.map((c) => slotKey(c.slot)));
+      left = left.filter((c) => !taken.has(slotKey(c.slot)));
+    }
+    return out;
+  };
+  const nearGroup = (): Candidate[] | null => {
+    const seeds = pool.filter((c) => c.twins > 0);
+    if (seeds.length === 0) return null;
+    const seed = seeds.reduce((a, c) => (c.score > a.score ? c : a));
+    const byKey = new Map(pool.map((c) => [slotKey(c.slot), c]));
+    const out = [seed];
+    // Étend vers la droite puis vers la gauche tant que les places voisines sont libres.
+    for (const step of [1, -1]) {
+      for (let r = seed.slot.rang + step; out.length < wanted; r += step) {
+        const next = byKey.get(slotKey({ clayette: seed.slot.clayette, rang: r }));
+        if (!next) break;
+        out.push(next);
+      }
+    }
+    const taken = new Set(out.map((c) => slotKey(c.slot)));
+    return [...out, ...byRuns(pool.filter((c) => !taken.has(slotKey(c.slot))), wanted - out.length)];
+  };
+  const adjacentPairs = (list: Candidate[]): number => {
+    const keys = new Set(list.map((c) => slotKey(c.slot)));
+    return list.filter((c) => keys.has(slotKey({ clayette: c.slot.clayette, rang: c.slot.rang + 1 }))).length;
+  };
+  const total = (list: Candidate[]): number =>
+    list.length * 1000 + list.reduce((sum, c) => sum + c.score, 0) + adjacentPairs(list) * SCORE.contiguous;
+
+  const optionA = byRuns(pool, wanted);
+  const optionB = nearGroup();
+  const chosen = optionB && total(optionB) > total(optionA) ? optionB : optionA;
   chosen.sort((a, b) => a.index - b.index);
   const slots = chosen.map((c) => c.slot);
   if (slots.length < wanted) {
@@ -284,12 +314,18 @@ export function suggestSlots(
       message: `Seulement ${plural(slots.length, 'place libre compatible', 'places libres compatibles')}${scope} pour ${wanted} bouteilles.`,
     };
   }
+  const runs = slots.length - adjacentPairs(chosen);
   const first = chosen[0]!;
-  const message =
-    runs === 1
-      ? first.twins > 0 || chosen.some((c) => c.twins > 0)
-        ? `${wanted} places côte à côte, près des bouteilles du même vin.`
-        : `${wanted} places côte à côte sur la clayette ${first.slot.clayette}.`
-      : `Pas assez de places côte à côte : les ${wanted} bouteilles sont réparties sur ${runs} endroits.`;
+  const nearTwin = chosen.some((c) => c.twins > 0);
+  let message: string;
+  if (runs === 1) {
+    message = nearTwin
+      ? `${wanted} places côte à côte, près des bouteilles du même vin.`
+      : `${wanted} places côte à côte sur la clayette ${first.slot.clayette}.`;
+  } else if (nearTwin) {
+    message = `Au plus près des bouteilles du même vin ; faute de place, les ${wanted} bouteilles sont réparties sur ${runs} endroits.`;
+  } else {
+    message = `Pas assez de places côte à côte : les ${wanted} bouteilles sont réparties sur ${runs} endroits.`;
+  }
   return { slots, complete: true, message };
 }

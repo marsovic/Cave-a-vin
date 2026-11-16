@@ -1,3 +1,5 @@
+import { cellarHeaderSeparator } from '../domain/csv';
+
 /**
  * Import / export du CSV sans File System Access API : téléchargement, partage
  * (feuille de partage iOS/Android/Windows : Mail, Fichiers, OneDrive…), courriel, lecture de fichier.
@@ -136,61 +138,54 @@ export function buildMailto(
   };
 }
 
-function headerSeparator(line: string): string | null {
-  const lowered = line
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
-  const looksLikeHeader =
-    /^\W*enregistrement\b/.test(lowered) || (lowered.includes('chateau') && lowered.includes('appellation'));
-  if (!looksLikeHeader) return null;
-  for (const sep of [';', '\t', ',']) if (line.includes(sep)) return sep;
-  return null;
-}
+const countOf = (line: string, sep: string): number => line.split(sep).length - 1;
 
 /**
- * Extrait un CSV de cave d'un texte collé (par exemple le corps d'un courriel) :
+ * Extrait un CSV de cave d'un texte collé (corps d'un courriel, cellules copiées d'un tableur…) :
  * retire le texte avant la ligne d'en-tête et après la dernière ligne de données.
- * Renvoie `null` si aucun en-tête n'est reconnu.
+ * L'en-tête est reconnu comme à l'import d'un fichier (mêmes alias de colonnes).
+ * Renvoie `null` si aucun en-tête suivi de données n'est trouvé.
  */
 export function extractCsvFromText(text: string): string | null {
   const lines = text
-    .replace(/^﻿/, '')
+    .replace(/^\uFEFF/, '')
     .split(/\r\n|\r|\n/)
-    // Préfixes de citation des courriels (« > », « >> »).
-    .map((line) => line.replace(/^\s*(?:>\s?)+/, ''));
-  let start = -1;
-  let sep = '';
-  for (let i = 0; i < lines.length; i++) {
-    const found = headerSeparator(lines[i]!);
-    if (found) {
-      start = i;
-      sep = found;
-      break;
-    }
-  }
-  if (start < 0) return null;
-  const kept: string[] = [lines[start]!.trim()];
-  let pendingBlank = 0;
-  let inQuotes = false;
-  for (let i = start + 1; i < lines.length; i++) {
-    const line = lines[i]!;
-    if (inQuotes) {
-      // Suite d'un champ entre guillemets contenant un retour à la ligne.
+    // Préfixes de citation des courriels (« > », « >> ») ; les tabulations de tête sont des cellules vides.
+    .map((line) => line.replace(/^ *(?:> ?)+/, '').replace(/[ \r]+$/, ''));
+
+  for (let start = 0; start < lines.length; start++) {
+    const sep = cellarHeaderSeparator(lines[start]!);
+    if (!sep) continue;
+    const width = countOf(lines[start]!, sep);
+    const kept: string[] = [lines[start]!];
+    let rows = 0;
+    let blanks = 0;
+    let inQuotes = false;
+    for (let i = start + 1; i < lines.length; i++) {
+      const line = lines[i]!;
+      if (inQuotes) {
+        // Suite d'un champ entre guillemets contenant un retour à la ligne.
+        kept.push(line);
+        if ((line.match(/"/g)?.length ?? 0) % 2 === 1) inQuotes = false;
+        continue;
+      }
+      if (line.trim() === '') {
+        blanks += 1;
+        continue;
+      }
+      // Les commentaires « # … » sont ignorés par l'analyseur : on ne s'arrête pas dessus.
+      if (line.trimStart().startsWith('#') && !line.includes(sep)) continue;
+      if (!line.includes(sep)) break;
+      // Après un blanc, seule une ligne qui a la forme d'une ligne du tableau (assez de
+      // colonnes) est acceptée : une signature de courriel contenant une virgule ne l'est pas.
+      if (blanks > 0 && countOf(line, sep) < Math.max(1, width)) break;
+      blanks = 0;
       kept.push(line);
-      if ((line.match(/"/g)?.length ?? 0) % 2 === 1) inQuotes = false;
-      continue;
+      rows += 1;
+      if ((line.match(/"/g)?.length ?? 0) % 2 === 1) inQuotes = true;
     }
-    if (line.trim() === '') {
-      pendingBlank += 1;
-      continue;
-    }
-    if (!line.includes(sep)) break;
-    // Des lignes vides intercalées sont tolérées, pas un long blanc suivi d'autre chose.
-    if (pendingBlank > 2) break;
-    pendingBlank = 0;
-    kept.push(line.trim());
-    if ((line.match(/"/g)?.length ?? 0) % 2 === 1) inQuotes = true;
+    // Un en-tête sans aucune ligne de données n'en est pas un (phrase d'introduction…) : on continue.
+    if (rows > 0) return kept.join('\r\n');
   }
-  return kept.length > 1 ? kept.join('\r\n') : null;
+  return null;
 }

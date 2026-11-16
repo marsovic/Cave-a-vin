@@ -83,7 +83,7 @@ describe('planReorganization — propriétés sur des caves aléatoires', () => 
         const plan = planReorganization(cellar, { mode });
         expect(planReorganization(plan.target, { mode }).steps).toHaveLength(0);
       }),
-      { numRuns: 200, seed: 2026 },
+      { numRuns: 400, seed: 2026 },
     );
   });
 
@@ -257,6 +257,78 @@ describe('planReorganization — scénarios', () => {
         expect(rangs.at(-1)! - rangs[0]!, mode).toBe(group.length - 1);
       }
     }
+  });
+});
+
+describe('planReorganization — cas signalés en revue', () => {
+  const order = (plan: ReorgPlan): string[] => bottlesInReadingOrder(plan.target).map((b) => `${b.chateau} ${b.annee ?? 'NM'}`);
+
+  it('ne déclare pas « déjà rangée » une cave qu\'un rangement compatible trierait parfaitement', () => {
+    const cellar = cellarWith(shelves([1, 'tout'], [2, 'champagne'], [1, 'bordeaux']), [
+      [1, 1, { chateau: 'Bollinger', annee: 2005, forme: 'champagne' }],
+      [2, 1, { chateau: 'Ruinart', annee: 2010, forme: 'champagne' }],
+      [3, 1, { chateau: 'Margaux', annee: 2005, forme: 'bordeaux' }],
+    ]);
+    for (const mode of MODES) {
+      const plan = planReorganization(cellar, { mode });
+      expect(plan.stats.exceptionsOrdre, mode).toBe(0);
+      expect(order(plan), mode).toEqual(['Margaux 2005', 'Bollinger 2005', 'Ruinart 2010']);
+      run(cellar, plan);
+    }
+  });
+
+  it('préfère une cible parfaitement triée à l\'économie d\'un déplacement', () => {
+    const cellar = cellarWith(shelves([2, 'bordeaux'], [2, 'tout'], [2, 'bordeaux']), [
+      [2, 1, { chateau: 'Latour', annee: 2010, forme: 'champagne' }],
+      [2, 2, { chateau: 'Pétrus', annee: 2015, forme: 'champagne' }],
+      [3, 2, { chateau: 'Cheval Blanc', annee: 2010, forme: 'bordeaux' }],
+    ]);
+    const plan = planReorganization(cellar);
+    expect(plan.stats.exceptionsOrdre).toBe(0);
+    expect(plan.steps).toHaveLength(1);
+    expect(isSorted(years(plan.target))).toBe(true);
+  });
+
+  it('mode compact : l\'ordre des années passe avant le tassement', () => {
+    const cellar = cellarWith(shelves([1, 'bordeaux'], [3, 'tout'], [1, 'tout']), [
+      [1, 1, { chateau: 'Pétrus', annee: 2015, forme: 'bordeaux' }],
+      [3, 1, { chateau: 'Krug', annee: 2010, forme: 'champagne' }],
+    ]);
+    const plan = planReorganization(cellar, { mode: 'compact' });
+    expect(order(plan)).toEqual(['Krug 2010', 'Pétrus 2015']);
+    expect(plan.stats.exceptionsOrdre).toBe(0);
+  });
+
+  it('l\'ajout d\'une bouteille à un lot ne bouleverse pas toute la cave', () => {
+    const bottles: [number, number, Partial<Bottle>][] = [];
+    const lot = (clayette: number, from: number, chateau: string, annee: number, n = 4): void => {
+      for (let k = 0; k < n; k++) bottles.push([clayette, from + k, { chateau, annee }]);
+    };
+    lot(1, 1, 'Ducru', 2000);
+    lot(1, 5, 'Cos', 2000);
+    lot(2, 1, 'Branaire', 2000);
+    lot(2, 5, 'Angélus', 2000);
+    bottles.push([3, 1, { chateau: 'Zède', annee: 2010 }]);
+    const config = shelves([8, 'tout'], [8, 'tout'], [8, 'tout'], [8, 'tout']);
+    expect(planReorganization(cellarWith(config, bottles)).steps).toHaveLength(0);
+    // Une cinquième Ducru 2000, posée tout en bas.
+    const cellar = cellarWith(config, [...bottles, [4, 8, { chateau: 'Ducru', annee: 2000 }]]);
+    const plan = planReorganization(cellar);
+    expect(plan.steps.length).toBeLessThanOrEqual(8);
+    expect(isSorted(years(plan.target))).toBe(true);
+    expect(plan.stats.groupesSepares).toBe(0);
+    run(cellar, plan);
+  });
+
+  it('les bouteilles sans château ne forment pas un faux lot', () => {
+    const cellar = cellarWith(shelves([6, 'tout'], [2, 'tout']), [
+      [1, 1, { chateau: '', appellation: 'Chablis', annee: 2020 }],
+      [1, 2, { chateau: 'Château Margaux', appellation: 'Margaux', annee: 2020 }],
+      [1, 3, { chateau: '', appellation: 'Pauillac', annee: 2020 }],
+      [1, 4, { chateau: 'Zind', appellation: 'Alsace', annee: 2020 }],
+      [2, 1, { chateau: '', appellation: 'Sancerre', annee: 2020 }],
+    ]);
+    expect(planReorganization(cellar, { mode: 'economique' }).steps).toHaveLength(0);
   });
 });
 

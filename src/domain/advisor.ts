@@ -90,7 +90,8 @@ const ROUGES_PUISSANTS = ['cabernet sauvignon', 'syrah', 'shiraz', 'nebbiolo', '
 const ROUGES_LEGERS = ['gamay', 'pinot noir', 'poulsard', 'trousseau', 'grolleau', 'dolcetto', 'cinsault', 'pineau d aunis', 'mondeuse', 'lambrusco'];
 const BLANCS_VIFS = ['sauvignon', 'melon', 'aligote', 'piquepoul', 'jacquere', 'albarino', 'alvarinho', 'verdejo', 'riesling', 'colombard', 'vermentino', 'rolle', 'garganega', 'cortese', 'sylvaner', 'chasselas', 'gros plant', 'gruner veltliner', 'ugni blanc', 'loureiro', 'pinot blanc', 'palomino', 'altesse', 'glera', 'folle blanche'];
 const BLANCS_AROMATIQUES = ['gewurztraminer', 'muscat', 'viognier', 'pinot gris', 'torrontes', 'moscato'];
-const VINS_DOUX_ROUGES = ['banyuls', 'maury', 'porto'];
+/** Vins doux naturels / mutés rouges (fiche d'appellation). */
+const VINS_DOUX_ROUGES = new Set(['Banyuls', 'Maury', 'Porto']);
 
 /** Profil gustatif simplifié d'un vin, déduit de la robe, de l'appellation et des cépages. */
 export function wineProfile(wine: WineFields, info: AppellationInfo | undefined = findAppellation(wine.appellation)): Profile {
@@ -105,9 +106,18 @@ export function wineProfile(wine: WineFields, info: AppellationInfo | undefined 
   if (wine.robe === 'rose') return 'rose';
 
   if (wine.robe === 'rouge') {
-    if (VINS_DOUX_ROUGES.some((v) => text.includes(v))) return 'rougeDoux';
+    // Doux naturel : d'après la fiche (« Maury Sec » est un rouge sec ; « Porto-Vecchio » n'est pas un porto).
+    const dry = /\bsec\b/.test(text);
+    const sweet = info
+      ? VINS_DOUX_ROUGES.has(info.nom)
+      : /\b(?:banyuls|maury|porto|port)\b(?! vecchio)/.test(text) || /\bvin doux naturel\b|\bvdn\b/.test(text);
+    if (sweet && !dry) return 'rougeDoux';
     const fin = info?.garde.rouge?.[1];
-    if (anyOf(ROUGES_LEGERS, [main])) return 'rougeLeger';
+    if (anyOf(ROUGES_LEGERS, [main])) {
+      // Un grand pinot de garde (Chambertin, Corton, Pommard…) n'est pas un rouge « léger ».
+      if (fin === undefined || fin < 15) return 'rougeLeger';
+      return fin >= 18 ? 'rougePuissant' : 'rougeMoyen';
+    }
     if (anyOf(ROUGES_PUISSANTS, [main]) || (fin !== undefined && fin >= 18)) return 'rougePuissant';
     if (main === '' && fin !== undefined && fin <= 5) return 'rougeLeger';
     if (anyOf(ROUGES_PUISSANTS) && fin !== undefined && fin >= 12) return 'rougePuissant';
@@ -126,22 +136,52 @@ function matchesRule(rule: DishRule, padded: string): boolean {
   return rule.mots.some((mot) => (mot.endsWith('$') ? padded.includes(` ${mot.slice(0, -1)} `) : padded.includes(` ${mot}`)));
 }
 
+/** Locutions à ne pas confondre avec un mot-clé d'une autre famille (texte normalisé, encadré d'espaces). */
+const LOCUTIONS: [RegExp, string][] = [
+  [/ pommes? de terre /g, ' patate '],
+  [/ fruits? de mer /g, ' fruitsdemer '],
+  [/ noix de (?=saint jacques |veau |coco |muscade |cajou |pecan |jambon )/g, ' '],
+  [/ noisettes? d (?=agneau |chevreuil |porc |veau )/g, ' '],
+  [/ tartes? flambees? /g, ' flammekueche '],
+  [/ tartes? (?:fine |a l |a la |au |aux )?(?=oignon|poireau|maroilles|tomate|thon|legume|fromage|chevre|saumon|epinard|courgette|lardon|champignon|munster|salee)/g, ' quiche '],
+  [/ galettes? des rois /g, ' galettedesrois '],
+  [/ cordons? bleus? /g, ' cordonbleu '],
+  [/ (?:steak|entrecote|bavette|viande|cuisson|servi|cuit) bleue? /g, ' steak '],
+  [/ au bleu /g, ' '],
+  [/ a la coque /g, ' '],
+  [/ riz au lait /g, ' rizaulait '],
+  [/ choux? a la creme /g, ' patisserie '],
+  [/ huile d olive /g, ' '],
+  [/ au lieu d[e ] ?/g, ' '],
+];
+
+const DESSERT_FAMILIES = new Set(['dessert-fruits', 'noix-caramel']);
+const SPECIFIC_CHEESES = new Set(['fromage-dur', 'bleu', 'chevre', 'pate-molle', 'croute-lavee', 'fromage-frais']);
+
 /** Familles de plats reconnues dans une description libre. */
 export function recognizeDish(plat: string): DishRule[] {
-  // « pomme de terre » n'est pas un dessert aux pommes.
-  const padded = ` ${norm(plat)} `.replace(/ pommes? de terre /g, ' patate ');
+  let padded = ` ${norm(plat)} `;
   if (padded.trim() === '') return [];
+  for (const [locution, by] of LOCUTIONS) padded = padded.replace(locution, by);
   const found = DISH_RULES.filter((rule) => matchesRule(rule, padded));
-  // « plateau de fromages » générique : ignoré si un fromage précis est reconnu ; idem pour les desserts.
-  const specificCheese = found.some((r) => ['fromage-dur', 'bleu', 'chevre', 'pate-molle', 'croute-lavee', 'fromage-frais'].includes(r.id));
-  const specificDessert = found.some((r) => r.id === 'chocolat' || r.id === 'noix-caramel');
-  return found.filter((r) => !(r.id === 'fromages' && specificCheese) && !(r.id === 'dessert-fruits' && specificDessert));
+  // « plateau de fromages » générique : ignoré si un fromage précis est reconnu.
+  const specificCheese = found.some((r) => SPECIFIC_CHEESES.has(r.id));
+  // Un fruit ou une noix dans un plat salé (« canard aux figues », « truite aux amandes », « porc à
+  // l'ananas ») n'en fait pas un dessert ; un dessert au chocolat prime sur le dessert générique.
+  const savoury = found.some((r) => !DESSERT_FAMILIES.has(r.id) && r.id !== 'chocolat' && r.id !== 'melon');
+  const chocolate = found.some((r) => r.id === 'chocolat' || r.id === 'noix-caramel');
+  return found.filter((r) => {
+    if (r.id === 'fromages' && specificCheese) return false;
+    if (DESSERT_FAMILIES.has(r.id) && savoury) return false;
+    if (r.id === 'dessert-fruits' && chocolate) return false;
+    return true;
+  });
 }
 
 function verdict(score: number): string {
   if (score >= 85) return 'accompagne idéalement';
   if (score >= 70) return 'va bien avec';
-  if (score >= 60) return 'peut convenir à';
+  if (score >= 60) return 'peut accompagner';
   if (score >= 40) return 'n\'est pas l\'accord le plus évident pour';
   return 'est déconseillé avec';
 }
@@ -162,11 +202,11 @@ export function localPairing(plat: string, wine: WineFields): Pairing {
   const info = wine.appellation.trim() ? findAppellation(wine.appellation) : undefined;
   const profile = wineProfile(wine, info);
   const column = PROFILES.indexOf(profile);
-  const tags = ` ${norm(
-    [wine.appellation, info?.nom, info?.region, info?.pays, ...(wine.cepages.length > 0 ? wine.cepages : (info?.cepages[wine.robe] ?? []))]
-      .filter(Boolean)
-      .join(' '),
-  )} `;
+  // Chaque élément est encadré d'espaces : les motifs de bonus sont cherchés par mots entiers.
+  const tags = ` ${[wine.appellation, info?.nom, info?.region, info?.pays, ...(wine.cepages.length > 0 ? wine.cepages : (info?.cepages[wine.robe] ?? []))]
+    .filter((x): x is string => Boolean(x))
+    .map((x) => norm(x).replace(/cabernet sauvignon/g, 'cabernetsauvignon').replace(/melon de bourgogne/g, 'melon'))
+    .join('  ')} `;
 
   let total = 0;
   let best: { rule: DishRule; score: number } | null = null;
@@ -174,7 +214,7 @@ export function localPairing(plat: string, wine: WineFields): Pairing {
     const base = rule.scores[column] ?? 50;
     let bonus = 0;
     for (const [pattern, points] of rule.bonus ?? []) {
-      if (tags.includes(` ${pattern} `) || tags.includes(` ${pattern}`)) bonus = Math.max(bonus, points);
+      if (tags.includes(` ${pattern} `)) bonus = Math.max(bonus, points);
     }
     // Un accord régional ne rattrape pas un profil inadapté.
     const score = Math.max(0, Math.min(100, base + (base >= 45 ? bonus : bonus / 2)));

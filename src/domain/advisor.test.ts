@@ -128,6 +128,51 @@ describe('profil et accords locaux', () => {
     expect(ids('xyz')).toEqual([]);
   });
 
+  it('ne confond pas les mots proches ni les locutions salées avec un dessert', () => {
+    const ids = (plat: string): string[] => recognizeDish(plat).map((r) => r.id);
+    expect(ids('plateau de fruits de mer')).toEqual(['fruits-de-mer']);
+    expect(ids('noix de Saint-Jacques poêlées')).toEqual(['poisson-noble']);
+    expect(ids('civet de chevreuil')).toEqual(['gibier']);
+    expect(ids('poireaux vinaigrette')).toEqual(['legumes']);
+    expect(ids('omelette au cerfeuil')).toEqual(['oeufs']);
+    expect(ids('gratin de macaronis')).not.toContain('dessert-fruits');
+    expect(ids('tarte à l\'oignon')).not.toContain('dessert-fruits');
+    expect(ids('truite aux amandes')).toEqual(['poisson']);
+    expect(ids('noisettes d\'agneau')).toEqual(['agneau']);
+    expect(ids('cordon bleu')).toEqual(['volaille']);
+    expect(ids('galette des rois')).toEqual(['noix-caramel']);
+    expect(ids('œuf à la coque')).toEqual(['oeufs']);
+    expect(ids('poulet au citron')).toEqual(['volaille']);
+    expect(ids('magret de canard aux figues')).toContain('canard');
+    expect(ids('tarte aux pommes')).toEqual(['dessert-fruits']);
+    expect(ids('riz au lait')).toEqual(['dessert-fruits']);
+    // Les accords classiques ne sont plus écrasés par une fausse famille « dessert ».
+    expect(localPairing('plateau de fruits de mer', sancerre).score).toBeGreaterThanOrEqual(90);
+    expect(localPairing('civet de chevreuil', pauillac).score).toBeGreaterThanOrEqual(85);
+  });
+
+  it('un grand pinot de garde n\'est pas un rouge léger ; un vin doux est reconnu par sa fiche', () => {
+    expect(wineProfile(wine({ appellation: 'Gevrey-Chambertin', cepages: ['Pinot noir'], forme: 'bourgogne' }))).toBe('rougePuissant');
+    expect(wineProfile(wine({ appellation: 'Volnay', cepages: ['Pinot noir'], forme: 'bourgogne' }))).toBe('rougeMoyen');
+    expect(wineProfile(wine({ appellation: 'Bourgogne', cepages: ['Pinot noir'], forme: 'bourgogne' }))).toBe('rougeLeger');
+    expect(wineProfile(wine({ appellation: 'Port', cepages: [] }))).toBe('rougeDoux');
+    expect(wineProfile(wine({ appellation: 'Maury Sec', cepages: ['Grenache'] }))).not.toBe('rougeDoux');
+    expect(wineProfile(wine({ appellation: 'Corse Porto-Vecchio', cepages: ['Nielluccio'] }))).not.toBe('rougeDoux');
+  });
+
+  it('les bonus régionaux portent sur des mots entiers', () => {
+    const jurancon = wine({ appellation: 'Jurançon', cepages: ['Petit Manseng'], robe: 'blanc-liquoreux' });
+    const monbazillac = wine({ appellation: 'Monbazillac', cepages: ['Sémillon'], robe: 'blanc-liquoreux' });
+    // « jura » ne récompense pas le Jurançon.
+    expect(localPairing('tarte aux noix', jurancon).score).toBe(localPairing('tarte aux noix', monbazillac).score);
+    // « sauvignon » ne récompense pas le Cabernet Sauvignon ; « bourgogne » pas le Melon de Bourgogne.
+    const medoc = wine({ appellation: 'Médoc', cepages: ['Cabernet Sauvignon'] });
+    const tannat = wine({ appellation: 'Médoc', cepages: ['Tannat'] });
+    expect(localPairing('crottin de chèvre', medoc).score).toBe(localPairing('crottin de chèvre', tannat).score);
+    expect(localPairing('gigot', pauillac).raison).not.toMatch(/à le |à les /);
+    expect(localPairing('saucisson', wine({ appellation: 'Pauillac' })).raison).toMatch(/peut accompagner|va bien avec|pas l'accord/);
+  });
+
   it('plat inconnu : note neutre et invitation à utiliser l\'IA', () => {
     expect(localPairing('xyzzy', pauillac)).toMatchObject({ score: 50, source: 'local' });
     expect(localPairing('xyzzy', pauillac).raison).toMatch(/assistant IA/);

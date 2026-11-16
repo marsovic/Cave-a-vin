@@ -42,7 +42,10 @@ export interface DishRule {
   mots: string[];
   /** Note de base (0–100) pour chaque profil, dans l'ordre de `PROFILES`. */
   scores: [number, number, number, number, number, number, number, number, number, number];
-  /** Bonus : motif cherché dans « appellation région pays cépages » (normalisé) → points. */
+  /**
+   * Bonus : motif (mots entiers) cherché dans « appellation région pays cépages » normalisé → points.
+   * Le cépage Cabernet Sauvignon s'écrit `cabernetsauvignon` (pour ne pas être pris pour du Sauvignon).
+   */
   bonus?: [string, number][];
 }
 
@@ -53,26 +56,26 @@ export const DISH_RULES: DishRule[] = [
     label: 'le bœuf et les viandes rouges grillées',
     mots: ['boeuf', 'entrecote', 'steak', 'bavette', 'onglet', 'rumsteck', 'tournedos', 'faux filet', 'viande rouge', 'burger', 'hamburger', 'rosbif', 'chateaubriand', 'cote a l os'],
     scores: [68, 84, 92, 20, 30, 15, 5, 45, 30, 15],
-    bonus: [['medoc', 5], ['pauillac', 5], ['saint julien', 5], ['margaux', 5], ['saint estephe', 5], ['cahors', 4], ['madiran', 4], ['cabernet sauvignon', 3], ['malbec', 4]],
+    bonus: [['medoc', 5], ['pauillac', 5], ['saint julien', 5], ['margaux', 5], ['saint estephe', 5], ['cahors', 4], ['madiran', 4], ['cabernetsauvignon', 3], ['malbec', 4]],
   },
   {
     id: 'agneau',
     label: 'l\'agneau',
     mots: ['agneau', 'gigot', 'navarin', 'mouton', 'mechoui'],
     scores: [62, 84, 93, 18, 28, 12, 5, 45, 28, 12],
-    bonus: [['pauillac', 7], ['medoc', 5], ['saint julien', 5], ['bandol', 5], ['rioja', 4], ['chateauneuf', 4], ['ribera', 4]],
+    bonus: [['pauillac', 7], ['medoc', 5], ['saint julien', 5], ['bandol', 5], ['rioja', 4], ['chateauneuf du pape', 4], ['ribera del duero', 4]],
   },
   {
     id: 'gibier',
     label: 'le gibier',
-    mots: ['gibier', 'chevreuil', 'sanglier', 'cerf', 'biche', 'lievre', 'faisan', 'perdrix', 'perdreau', 'civet', 'marcassin', 'venaison', 'becasse', 'colvert', 'pigeon'],
+    mots: ['gibier', 'chevreuil', 'sanglier', 'cerf$', 'cerfs$', 'biche', 'lievre', 'faisan', 'perdrix', 'perdreau', 'civet', 'marcassin', 'venaison', 'becasse', 'colvert', 'pigeon'],
     scores: [60, 80, 93, 10, 22, 12, 5, 25, 25, 20],
-    bonus: [['cote rotie', 6], ['hermitage', 6], ['cornas', 6], ['chateauneuf', 5], ['gigondas', 5], ['bourgogne', 6], ['barolo', 5], ['madiran', 4], ['cahors', 4], ['pomerol', 4], ['bandol', 4]],
+    bonus: [['cote rotie', 6], ['hermitage', 6], ['cornas', 6], ['chateauneuf du pape', 5], ['gigondas', 5], ['bourgogne', 6], ['barolo', 5], ['madiran', 4], ['cahors', 4], ['pomerol', 4], ['bandol', 4]],
   },
   {
     id: 'canard',
     label: 'le canard',
-    mots: ['canard', 'magret', 'confit', 'aiguillette', 'oie'],
+    mots: ['canard', 'magret', 'aiguillette', 'oie$', 'oies$'],
     scores: [70, 86, 86, 15, 30, 25, 20, 45, 30, 25],
     bonus: [['sud ouest', 6], ['saint emilion', 5], ['pomerol', 5], ['bourgogne', 3], ['cahors', 2], ['madiran', 2]],
   },
@@ -93,7 +96,7 @@ export const DISH_RULES: DishRule[] = [
   {
     id: 'volaille',
     label: 'la volaille rôtie',
-    mots: ['poulet', 'volaille', 'pintade', 'dinde', 'poularde', 'coquelet', 'poule$', 'caille'],
+    mots: ['poulet', 'volaille', 'pintade', 'dinde', 'poularde', 'coquelet', 'poule$', 'caille$', 'cailles$', 'cordonbleu'],
     scores: [82, 78, 58, 60, 86, 55, 15, 62, 60, 5],
     bonus: [['bourgogne', 5], ['beaujolais', 5], ['chardonnay', 3], ['jura', 3]],
   },
@@ -135,7 +138,7 @@ export const DISH_RULES: DishRule[] = [
   {
     id: 'abats',
     label: 'les abats et l\'andouillette',
-    mots: ['tripes', 'andouillette', 'rognon', 'foie de veau', 'langue', 'tete de veau', 'boudin noir', 'abats', 'pieds paquets', 'ris de veau'],
+    mots: ['tripes', 'andouillette', 'rognon', 'foie de veau', 'langue$', 'langues$', 'tete de veau', 'boudin noir', 'abats', 'pieds paquets', 'ris de veau'],
     scores: [84, 78, 55, 62, 68, 40, 5, 50, 45, 0],
     bonus: [['beaujolais', 6], ['chablis', 5], ['vallee de la loire', 4], ['bourgogne', 3]],
   },
@@ -170,7 +173,7 @@ export const DISH_RULES: DishRule[] = [
   {
     id: 'poisson',
     label: 'le poisson',
-    mots: ['poisson', 'bar$', 'dorade', 'daurade', 'sole', 'cabillaud', 'lieu', 'merlu', 'colin', 'turbot', 'lotte', 'truite', 'sandre', 'brochet', 'saint pierre', 'raie', 'fletan', 'loup de mer', 'rouget', 'merlan', 'limande', 'fish'],
+    mots: ['poisson', 'bar$', 'dorade', 'daurade', 'sole', 'cabillaud', 'lieu jaune', 'lieu noir', 'merlu', 'colin', 'turbot', 'lotte', 'truite', 'sandre', 'brochet', 'saint pierre', 'raie', 'fletan', 'loup de mer', 'rouget', 'merlan', 'limande', 'fish'],
     scores: [35, 20, 5, 90, 82, 62, 10, 62, 72, 0],
     bonus: [['sancerre', 5], ['pouilly fume', 5], ['chablis', 6], ['muscadet', 5], ['bourgogne', 4], ['cassis', 3], ['sauvignon', 3]],
   },
@@ -179,7 +182,7 @@ export const DISH_RULES: DishRule[] = [
     label: 'les crustacés nobles et les poissons en sauce',
     mots: ['beurre blanc', 'homard', 'langouste', 'saint jacques', 'quenelle', 'sauce hollandaise', 'armoricaine', 'americaine'],
     scores: [20, 12, 5, 72, 94, 62, 15, 45, 80, 0],
-    bonus: [['meursault', 7], ['puligny', 7], ['chassagne', 7], ['corton charlemagne', 7], ['bourgogne', 4], ['champagne', 5], ['savennieres', 4], ['vouvray', 4], ['condrieu', 4], ['pessac', 4]],
+    bonus: [['meursault', 7], ['puligny montrachet', 7], ['chassagne montrachet', 7], ['corton charlemagne', 7], ['bourgogne', 4], ['champagne', 5], ['savennieres', 4], ['vouvray', 4], ['condrieu', 4], ['pessac leognan', 4]],
   },
   {
     id: 'poisson-gras',
@@ -191,7 +194,7 @@ export const DISH_RULES: DishRule[] = [
   {
     id: 'fruits-de-mer',
     label: 'les fruits de mer',
-    mots: ['fruits de mer', 'huitre', 'coquillage', 'crevette', 'langoustine', 'crabe', 'moule', 'bulot', 'palourde', 'gambas', 'tourteau', 'bigorneau', 'oursin', 'calamar', 'encornet', 'poulpe', 'seiche', 'coque$', 'coques$'],
+    mots: ['fruitsdemer', 'huitre', 'coquillage', 'crevette', 'langoustine', 'crabe', 'moule', 'bulot', 'palourde', 'gambas', 'tourteau', 'bigorneau', 'oursin', 'calamar', 'encornet', 'poulpe', 'seiche', 'coque$', 'coques$'],
     scores: [15, 8, 2, 95, 68, 50, 5, 55, 85, 0],
     bonus: [['muscadet', 7], ['chablis', 7], ['picpoul', 7], ['entre deux mers', 5], ['sancerre', 4], ['champagne', 5], ['albarino', 5], ['riesling', 3]],
   },
@@ -226,16 +229,16 @@ export const DISH_RULES: DishRule[] = [
   {
     id: 'bleu',
     label: 'les fromages bleus',
-    mots: ['roquefort', 'bleu', 'fourme', 'gorgonzola', 'stilton'],
+    mots: ['roquefort', 'bleu$', 'bleus$', 'fourme', 'gorgonzola', 'stilton'],
     scores: [20, 30, 35, 25, 40, 55, 95, 10, 40, 90],
     bonus: [['sauternes', 5], ['porto', 6], ['banyuls', 6], ['maury', 6], ['jurancon', 4], ['monbazillac', 4]],
   },
   {
     id: 'chevre',
     label: 'les fromages de chèvre',
-    mots: ['chevre', 'crottin', 'sainte maure', 'valencay', 'selles sur cher', 'picodon', 'pelardon', 'cabecou', 'rocamadour', 'feta', 'chabichou'],
+    mots: ['chevre$', 'chevres$', 'crottin', 'sainte maure', 'valencay', 'selles sur cher', 'picodon', 'pelardon', 'cabecou', 'rocamadour', 'feta', 'chabichou'],
     scores: [50, 30, 10, 94, 68, 55, 20, 55, 60, 5],
-    bonus: [['sancerre', 6], ['pouilly fume', 6], ['menetou', 6], ['quincy', 6], ['touraine', 6], ['sauvignon', 4], ['chenin', 3]],
+    bonus: [['sancerre', 6], ['pouilly fume', 6], ['menetou salon', 6], ['quincy', 6], ['touraine', 6], ['sauvignon', 4], ['chenin', 3]],
   },
   {
     id: 'pate-molle',
@@ -273,14 +276,14 @@ export const DISH_RULES: DishRule[] = [
   {
     id: 'noix-caramel',
     label: 'les desserts aux fruits secs, au café ou au caramel',
-    mots: ['noix', 'noisette', 'cafe$', 'tiramisu', 'caramel', 'praline', 'pain d epices', 'fruits secs', 'amande', 'nougat', 'frangipane', 'galette des rois'],
+    mots: ['noix', 'noisette', 'cafe$', 'tiramisu', 'caramel', 'praline', 'pain d epices', 'fruits secs', 'amande', 'nougat', 'frangipane', 'galettedesrois'],
     scores: [10, 12, 20, 5, 15, 35, 80, 5, 40, 92],
     bonus: [['rivesaltes', 5], ['banyuls', 4], ['maury', 4], ['porto', 4], ['madere', 6], ['jura', 6], ['jerez', 6], ['tokaj', 5]],
   },
   {
     id: 'dessert-fruits',
     label: 'les desserts aux fruits et les pâtisseries',
-    mots: ['tarte', 'dessert', 'fruit', 'fraise', 'framboise', 'pomme$', 'pommes$', 'poire', 'abricot', 'peche$', 'peches$', 'sorbet', 'crumble', 'clafoutis', 'tatin', 'creme brulee', 'ile flottante', 'patisserie', 'gateau', 'macaron', 'buche', 'glace', 'vanille', 'mangue', 'ananas', 'agrume', 'citron'],
+    mots: ['tarte', 'dessert', 'fruit', 'fraise', 'framboise', 'pomme$', 'pommes$', 'poire$', 'poires$', 'abricot', 'peche$', 'peches$', 'sorbet', 'crumble', 'clafoutis', 'tatin', 'creme brulee', 'ile flottante', 'patisserie', 'gateau', 'macaron$', 'macarons$', 'buche', 'rizaulait', 'glace', 'vanille', 'mangue', 'ananas', 'agrume', 'citron'],
     scores: [10, 5, 2, 20, 25, 62, 92, 45, 85, 45],
     bonus: [['muscat', 6], ['coteaux du layon', 5], ['vouvray', 5], ['moscato', 7], ['champagne', 3], ['sauternes', 3], ['gewurztraminer', 4], ['jurancon', 4]],
   },
@@ -310,12 +313,12 @@ export const DISH_RULES: DishRule[] = [
     label: 'les champignons, la truffe et le risotto',
     mots: ['risotto', 'champignon', 'cepe', 'girolle', 'morille', 'truffe', 'trompette', 'bolet', 'pleurote', 'chanterelle'],
     scores: [84, 82, 68, 45, 88, 40, 10, 35, 62, 5],
-    bonus: [['pomerol', 6], ['saint emilion', 6], ['bourgogne', 6], ['barolo', 6], ['barbaresco', 6], ['nebbiolo', 4], ['hermitage', 3], ['chateauneuf', 3]],
+    bonus: [['pomerol', 6], ['saint emilion', 6], ['bourgogne', 6], ['barolo', 6], ['barbaresco', 6], ['nebbiolo', 4], ['hermitage', 3], ['chateauneuf du pape', 3]],
   },
   {
     id: 'espagnol',
     label: 'la paella et la cuisine espagnole',
-    mots: ['paella', 'riz$', 'zarzuela', 'chorizo', 'iberique', 'pata negra', 'espagnol', 'tortilla'],
+    mots: ['paella', 'arroz', 'zarzuela', 'chorizo', 'iberique', 'pata negra', 'espagnol', 'tortilla'],
     scores: [68, 80, 50, 72, 62, 45, 5, 86, 62, 0],
     bonus: [['espagne', 8], ['provence', 3]],
   },
@@ -350,7 +353,7 @@ export const DISH_RULES: DishRule[] = [
   {
     id: 'legumes',
     label: 'les légumes et la cuisine végétarienne',
-    mots: ['legume', 'vegetarien', 'vegan', 'ratatouille', 'courgette', 'aubergine', 'poivron', 'tian', 'lentille', 'pois chiche', 'tofu', 'quinoa', 'asperge', 'artichaut', 'poireau', 'soupe', 'veloute', 'potage', 'epinard', 'chou', 'haricot', 'courge', 'potiron', 'avocat'],
+    mots: ['legume', 'vegetarien', 'vegan', 'ratatouille', 'courgette', 'aubergine', 'poivron', 'tian', 'lentille', 'pois chiche', 'tofu', 'quinoa', 'asperge', 'artichaut', 'poireau', 'soupe', 'veloute', 'potage', 'epinard', 'chou$', 'choux$', 'haricot', 'courge', 'potiron', 'avocat'],
     scores: [72, 60, 25, 82, 78, 62, 10, 82, 62, 0],
     bonus: [['provence', 4], ['vallee de la loire', 4], ['gamay', 3], ['muscat', 3]],
   },

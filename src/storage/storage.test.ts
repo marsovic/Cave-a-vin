@@ -136,6 +136,29 @@ describe('extraction d\'un CSV collé', () => {
     expect(extractCsvFromText(text)?.split('\r\n')).toHaveLength(4);
   });
 
+  it('reconnaît les mêmes en-têtes que l\'import de fichier', () => {
+    expect(extractCsvFromText('Domaine;AOC;Millésime;Couleur\nChâteau Margaux;Margaux;2015;Rouge')?.split('\r\n')).toHaveLength(2);
+    expect(extractCsvFromText('Château;AOC;Année\nA;Margaux;2015')).not.toBeNull();
+  });
+
+  it('une phrase d\'introduction qui cite les colonnes n\'est pas prise pour l\'en-tête', () => {
+    const text = `Voici ma cave : château, appellation et année de chaque bouteille.\n${header}\nbouteille;1;1;;;A;Margaux;2015;;Rouge;Bordeaux;non`;
+    expect(extractCsvFromText(text)?.split('\r\n')[0]).toBe(header);
+  });
+
+  it('ne coupe pas le tableau sur un commentaire ou des lignes vides', () => {
+    expect(extractCsvFromText('chateau;appellation;annee\nA;Margaux;2015\n# note\nB;Pauillac;2010')).toContain('B;Pauillac;2010');
+    expect(extractCsvFromText('chateau;appellation;annee\nA;Margaux;2015\n\n\n\nB;Pauillac;2010')).toContain('B;Pauillac;2010');
+    // … mais s'arrête avant la signature du courriel.
+    const mail = extractCsvFromText('Château,Appellation,Année\nA,Margaux,2015\n\nCordialement, Philippe');
+    expect(mail).not.toContain('Cordialement');
+  });
+
+  it('conserve les cellules vides en tête de ligne (tabulations)', () => {
+    const text = 'Clayette\tRang\tChâteau\tAppellation\tAnnée\n1\t1\tChâteau Margaux\tMargaux\t2015\n\t\tChâteau Latour\tPauillac\t2010';
+    expect(extractCsvFromText(text)?.split('\r\n')[2]).toBe('\t\tChâteau Latour\tPauillac\t2010');
+  });
+
   it('renvoie null sans en-tête reconnaissable ou sans données', () => {
     expect(extractCsvFromText('Bonjour, rien à voir ici.')).toBeNull();
     expect(extractCsvFromText(header)).toBeNull();

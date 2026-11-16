@@ -39,9 +39,10 @@ export function joinCepages(cepages: readonly string[]): string {
 export function parseRobe(text: string): Robe | null {
   const t = norm(text);
   if (!t) return null;
+  // La couleur explicite d'abord : « rouge doux » (Banyuls, Porto…) reste un rouge.
+  if (/rouge|\bred\b|rosso|tinto/.test(t)) return 'rouge';
+  if (/rose|rosado|rosato/.test(t)) return 'rose';
   if (/liquoreux|moelleux|doux|sauternes/.test(t)) return 'blanc-liquoreux';
-  if (/^ro(se|ses)?$|rose/.test(t)) return 'rose';
-  if (/rouge|red|rosso|tinto/.test(t)) return 'rouge';
   if (/blanc|white|bianco|blanco|effervescent|petillant|mousseux/.test(t)) return 'blanc';
   return null;
 }
@@ -72,8 +73,11 @@ export function parseTypeClayette(text: string): TypeClayette | null {
  * Clé de GROUPE pour le rangement : même château et même année
  * (les bouteilles d'un groupe doivent être côte à côte).
  */
-export function groupKey(w: Pick<WineFields, 'chateau' | 'annee'>): string {
-  return `${norm(w.chateau)}|${w.annee ?? ''}`;
+export function groupKey(w: Pick<WineFields, 'chateau' | 'annee'> & { appellation?: string }): string {
+  // Sans château, c'est l'appellation qui identifie le vin : deux bouteilles « Chablis 2020 » et
+  // « Pauillac 2020 » saisies sans producteur ne forment pas un lot.
+  const name = norm(w.chateau) || `@${norm(w.appellation ?? '')}`;
+  return `${name}|${w.annee ?? ''}`;
 }
 
 /**

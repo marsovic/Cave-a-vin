@@ -170,11 +170,20 @@ function readRows(text: string, sep: string, firstLine = 1): CsvRows {
     let p = i;
     while (p < n && isBlank(text.charCodeAt(p))) p++;
     if (p < n && text.charCodeAt(p) === CC_HASH) {
-      // Ligne de commentaire : ignorée jusqu'à la fin de la ligne.
-      while (p < n && !isEol(text.charCodeAt(p))) p++;
-      i = p < n ? afterEol(p) : n;
-      line++;
-      continue;
+      // Ligne de commentaire : ignorée jusqu'à la fin de la ligne — sauf si elle contient le
+      // séparateur : c'est alors une ligne de données dont la première cellule commence par « # »
+      // (« #1 Cuvée;Margaux;2015 »), qu'il ne faut pas faire disparaître en silence.
+      let q = p;
+      let hasSeparator = false;
+      while (q < n && !isEol(text.charCodeAt(q))) {
+        if (text.charCodeAt(q) === sepCode) hasSeparator = true;
+        q++;
+      }
+      if (!hasSeparator) {
+        i = q < n ? afterEol(q) : n;
+        line++;
+        continue;
+      }
     }
 
     const cells: string[] = [];
@@ -425,6 +434,17 @@ function stripBom(text: string): string {
 export function looksLikeCellarCsv(text: string): boolean {
   const located = locateHeader(stripBom(text));
   return located !== null && located.header.columns.size >= 2 && isUsefulHeader(located.header);
+}
+
+/**
+ * Si `line` est une ligne d'en-tête de cave reconnue (voir `looksLikeCellarCsv`), renvoie son
+ * séparateur ; sinon `null`. Sert à repérer le début d'un tableau dans un texte collé.
+ */
+export function cellarHeaderSeparator(line: string): string | null {
+  if (/[\r\n]/.test(line.trim())) return null;
+  const located = locateHeader(stripBom(line));
+  if (located === null || located.header.columns.size < 2 || !isUsefulHeader(located.header)) return null;
+  return located.sep;
 }
 
 /* ------------------------------------------------------------------ */

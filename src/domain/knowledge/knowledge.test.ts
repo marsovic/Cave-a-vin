@@ -79,6 +79,22 @@ describe('recherche d\'appellation', () => {
     expect(name('Muscat de Rivesaltes')).toBe('Muscat de Rivesaltes');
   });
 
+  it('préfère le nom le plus long contenu dans la saisie aux mentions retirées', () => {
+    expect(name('Chianti Classico Riserva')).toBe('Chianti Classico');
+    expect(name('Saint-Émilion 1er Grand Cru Classé')).toBe('Saint-Émilion Grand Cru');
+    expect(name('Saint-Émilion Premier Grand Cru Classé')).toBe('Saint-Émilion Grand Cru');
+    expect(name('Rioja Reserva')).toBe('Rioja');
+    expect(name('Médoc Cru Bourgeois')).toBe('Médoc');
+  });
+
+  it('un nom très court ne capture pas une autre appellation', () => {
+    expect(name('Grignolino d\'Asti')).toBeUndefined();
+    expect(name('Dolcetto d\'Asti')).toBe('Dolcetto d\'Alba');
+    expect(name('Corse Porto-Vecchio')).not.toBe('Porto');
+    expect(name('Port')).toBe('Porto');
+    expect(name('Muscat de Frontignan')).toBe('Muscat de Frontignan');
+  });
+
   it('refuse les saisies ambiguës ou inconnues', () => {
     expect(name('pouilly')).toBeUndefined();
     expect(name('saint')).toBeUndefined();
@@ -108,6 +124,7 @@ describe('valeurs déduites', () => {
     expect(genericGarde({ robe: 'rose', cepages: [] })).toEqual([0, 2]);
     expect(genericGarde({ robe: 'rouge', cepages: ['Cabernet Sauvignon'] })[1]).toBeGreaterThan(genericGarde({ robe: 'rouge', cepages: ['Gamay'] })[1]);
     expect(genericGarde({ robe: 'blanc-liquoreux', cepages: [] })[1]).toBeGreaterThanOrEqual(20);
+    expect(genericGarde({ robe: 'blanc-liquoreux', cepages: ['Muscat à petits grains'] })).toEqual([0, 5]);
   });
 });
 

@@ -21,6 +21,10 @@ describe('normalisation', () => {
     expect(parseRobe('Blanc')).toBe('blanc');
     expect(parseRobe('Blanc liquoreux')).toBe('blanc-liquoreux');
     expect(parseRobe('moelleux')).toBe('blanc-liquoreux');
+    expect(parseRobe('Rouge doux')).toBe('rouge');
+    expect(parseRobe('Vin doux naturel rouge')).toBe('rouge');
+    expect(parseRobe('Rosado')).toBe('rose');
+    expect(parseRobe('Rosato')).toBe('rose');
     expect(parseRobe('')).toBeNull();
     expect(parseRobe('orange')).toBeNull();
   });
@@ -42,6 +46,9 @@ describe('clés', () => {
     expect(groupKey(wine({ chateau: 'Château Margaux' }))).toBe(groupKey(wine({ chateau: 'CHATEAU  MARGAUX' })));
     expect(groupKey(wine({ annee: 2015 }))).not.toBe(groupKey(wine({ annee: 2016 })));
     expect(groupKey(wine({ annee: null }))).not.toBe(groupKey(wine({ annee: 2016 })));
+    // Sans château, l'appellation distingue les vins.
+    expect(groupKey(wine({ chateau: '', appellation: 'Chablis' }))).not.toBe(groupKey(wine({ chateau: '', appellation: 'Pauillac' })));
+    expect(groupKey(wine({ chateau: '', appellation: 'Chablis' }))).toBe(groupKey(wine({ chateau: ' ', appellation: 'CHABLIS' })));
   });
 
   it('vin = château, appellation, année, robe', () => {

@@ -115,7 +115,12 @@ export const APPELLATIONS: AppellationInfo[] = [
   }),
   bdx('Graves', { rouge: [['Merlot', 'Cabernet Sauvignon', 'Cabernet franc'], 4, 12], blanc: [BDX_BLANC, 2, 8] }),
   bdx('Saint-Émilion', r(LIBOURNAIS, 5, 15)),
-  bdx('Saint-Émilion Grand Cru', r(LIBOURNAIS, 7, 22), ['Saint-Émilion Grand Cru Classé']),
+  bdx('Saint-Émilion Grand Cru', r(LIBOURNAIS, 7, 22), [
+    'Saint-Émilion Grand Cru Classé',
+    'Saint-Émilion Premier Grand Cru Classé',
+    'Saint-Émilion 1er Grand Cru Classé A',
+    'Saint-Émilion 1er Grand Cru Classé B',
+  ]),
   bdx('Montagne-Saint-Émilion', r(LIBOURNAIS, 3, 10)),
   bdx('Lussac-Saint-Émilion', r(LIBOURNAIS, 3, 10)),
   bdx('Puisseguin-Saint-Émilion', r(LIBOURNAIS, 3, 10)),
@@ -318,6 +323,12 @@ export const APPELLATIONS: AppellationInfo[] = [
   lgd('Maury', r(['Grenache'], 5, 25)),
   lgd('Rivesaltes', liq(['Grenache blanc', 'Macabeu', 'Muscat'], 5, 40)),
   lgd('Muscat de Rivesaltes', liq(['Muscat à petits grains', 'Muscat d\'Alexandrie'], 0, 5)),
+  lgd('Muscat de Frontignan', liq(['Muscat à petits grains'], 0, 5), [
+    'Frontignan',
+    'Muscat de Lunel',
+    'Muscat de Mireval',
+    'Muscat de Saint-Jean-de-Minervois',
+  ]),
   lgd('Pays d\'Oc', { rouge: [['Merlot', 'Cabernet Sauvignon', 'Syrah'], 1, 4], blanc: [['Chardonnay', 'Viognier'], 1, 3], rose: [['Grenache', 'Cinsault'], 0, 2] }, [
     'Vin de Pays d\'Oc',
     'IGP Pays d\'Oc',
@@ -396,13 +407,14 @@ export const APPELLATIONS: AppellationInfo[] = [
   ap('Bugey', 'Savoie', 'bourgogne', { blanc: [['Chardonnay'], 1, 4], rouge: [['Gamay', 'Mondeuse'], 1, 4] }),
 
   /* ============================ ITALIE ============================ */
-  ita('Barolo', 'Piémont', 'bordeaux', r(NEBBIOLO, 8, 25)),
-  ita('Barbaresco', 'Piémont', 'bordeaux', r(NEBBIOLO, 6, 20)),
-  ita('Langhe', 'Piémont', 'bordeaux', r(NEBBIOLO, 3, 8), ['Langhe Nebbiolo', 'Nebbiolo d\'Alba']),
-  ita('Barbera d\'Asti', 'Piémont', 'bordeaux', r(['Barbera'], 2, 8), ['Barbera d\'Alba']),
-  ita('Dolcetto d\'Alba', 'Piémont', 'bordeaux', r(['Dolcetto'], 1, 4)),
+  // Piémont : bouteille « albeisa », aux épaules tombantes comme une bourguignonne.
+  ita('Barolo', 'Piémont', 'bourgogne', r(NEBBIOLO, 8, 25)),
+  ita('Barbaresco', 'Piémont', 'bourgogne', r(NEBBIOLO, 6, 20)),
+  ita('Langhe', 'Piémont', 'bourgogne', r(NEBBIOLO, 3, 8), ['Langhe Nebbiolo', 'Nebbiolo d\'Alba']),
+  ita('Barbera d\'Asti', 'Piémont', 'bourgogne', r(['Barbera'], 2, 8), ['Barbera d\'Alba']),
+  ita('Dolcetto d\'Alba', 'Piémont', 'bourgogne', r(['Dolcetto'], 1, 4), ['Dolcetto d\'Asti', 'Dolcetto di Dogliani']),
   ita('Gavi', 'Piémont', 'bordeaux', b(['Cortese'], 1, 4)),
-  ita('Moscato d\'Asti', 'Piémont', 'champagne', liq(['Moscato bianco'], 0, 2), ['Asti']),
+  ita('Moscato d\'Asti', 'Piémont', 'champagne', liq(['Moscato bianco'], 0, 2), ['Asti Spumante']),
   ita('Chianti', 'Toscane', 'bordeaux', r(SANGIOVESE, 2, 6)),
   ita('Chianti Classico', 'Toscane', 'bordeaux', r(SANGIOVESE, 4, 12)),
   ita('Brunello di Montalcino', 'Toscane', 'bordeaux', r(SANGIOVESE, 8, 25)),
@@ -435,7 +447,7 @@ export const APPELLATIONS: AppellationInfo[] = [
   esp('Navarra', 'Navarre', { rouge: [['Garnacha', 'Tempranillo'], 2, 7], rose: [['Garnacha'], 0, 2] }),
   esp('Jerez', 'Andalousie', b(['Palomino'], 0, 10), ['Xérès', 'Sherry']),
   ap('Cava', 'Catalogne', 'champagne', b(['Macabeo', 'Xarel·lo', 'Parellada'], 0, 4), { pays: 'Espagne', effervescent: true }),
-  ap('Porto', 'Douro', 'bordeaux', r(DOURO, 15, 50), { pays: 'Portugal', alias: ['Port', 'Vinho do Porto'] }),
+  ap('Porto', 'Douro', 'bordeaux', r(DOURO, 5, 30), { pays: 'Portugal', alias: ['Port', 'Vinho do Porto'] }),
   ap('Douro', 'Douro', 'bordeaux', r(DOURO, 4, 15), { pays: 'Portugal' }),
   ap('Dão', 'Dão', 'bordeaux', r(['Touriga Nacional', 'Tinta Roriz'], 3, 10), { pays: 'Portugal' }),
   ap('Alentejo', 'Alentejo', 'bordeaux', r(['Aragonez', 'Trincadeira', 'Alicante Bouschet'], 2, 8), { pays: 'Portugal' }),
@@ -443,7 +455,7 @@ export const APPELLATIONS: AppellationInfo[] = [
   ap('Madère', 'Madère', 'bordeaux', liq(['Malvoisie', 'Boal', 'Verdelho', 'Sercial'], 5, 80), { pays: 'Portugal', alias: ['Madeira'] }),
 
   /* ============================ ALLEMAGNE, AUTRICHE, HONGRIE ============================ */
-  ap('Mosel', 'Moselle', 'autre', b(RIESLING, 3, 15), { pays: 'Allemagne', alias: ['Moselle', 'Mosel-Saar-Ruwer'] }),
+  ap('Mosel', 'Moselle', 'autre', b(RIESLING, 3, 15), { pays: 'Allemagne', alias: ['Mosel-Saar-Ruwer'] }),
   ap('Rheingau', 'Rheingau', 'autre', b(RIESLING, 3, 15), { pays: 'Allemagne' }),
   ap('Pfalz', 'Palatinat', 'autre', b(RIESLING, 2, 10), { pays: 'Allemagne', alias: ['Palatinat'] }),
   ap('Nahe', 'Nahe', 'autre', b(RIESLING, 3, 12), { pays: 'Allemagne' }),

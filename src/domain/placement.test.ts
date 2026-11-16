@@ -55,6 +55,27 @@ describe('proposition d\'emplacement', () => {
     expect(rangs[3]! - rangs[0]!).toBe(3);
   });
 
+  it('plusieurs bouteilles : le voisinage du même vin passe avant une suite contiguë ailleurs', () => {
+    const cellar = cellarWith(shelves([6, 'tout'], [6, 'tout'], [6, 'tout']), [
+      [1, 1, { chateau: 'A', annee: 2015 }],
+      [1, 3, { chateau: 'B', annee: 2015 }],
+      [1, 4, { chateau: 'B', annee: 2015 }],
+      [1, 5, { chateau: 'B', annee: 2015 }],
+      [1, 6, { chateau: 'B', annee: 2015 }],
+      ...Array.from({ length: 6 }, (_, i): [number, number, { chateau: string; annee: number }] => [2, i + 1, { chateau: 'C', annee: 2016 }]),
+    ]);
+    const s = suggestSlots(cellar, wine({ chateau: 'A', annee: 2015 }), 2);
+    expect(s.complete).toBe(true);
+    expect(s.slots).toContainEqual({ clayette: 1, rang: 2 });
+    expect(s.message).toMatch(/même vin/);
+  });
+
+  it('deux vins sans château ne sont pas « le même vin »', () => {
+    const cellar = cellarWith(shelves([6, 'tout'], [6, 'champagne']), [[1, 4, { chateau: '', appellation: 'Champagne', annee: null, forme: 'champagne', robe: 'blanc' }]]);
+    const s = suggestSlots(cellar, wine({ chateau: '', appellation: 'Porto', annee: null }), 1);
+    expect(s.message).not.toMatch(/même vin/);
+  });
+
   it('respecte l\'emplacement désigné par l\'utilisateur et continue vers la droite', () => {
     const cellar = cellarWith(shelves([6, 'tout']), [[1, 4, { chateau: 'A' }]]);
     expect(suggestSlots(cellar, wine(), 1, { clayette: 1, rang: 2 }).slots).toEqual([{ clayette: 1, rang: 2 }]);

@@ -70,13 +70,21 @@ export const REORG_WEIGHTS: Record<ReorgMode, ReorgWeights> = {
 export const LEXICOGRAPHIC: Record<ReorgMode, boolean> = { economique: false, compact: true };
 
 /** Nombre maximal de replanifications lors de la stabilisation. */
-export const MAX_STABILISATION = 6;
+export const MAX_STABILISATION = 8;
 
 /** Nombre de replanifications où les deux variantes restent en concurrence (voir `planTarget`). */
 export const FREE_STABILISATION = 2;
 
-/** Variantes d'ordre des groupes d'une même année. */
-export const VARIANTS = ['position', 'alpha'] as const;
+/**
+ * Variantes d'ordre des groupes d'une même année :
+ *  - 'position' : position moyenne actuelle du groupe ;
+ *  - 'mediane' : position médiane (insensible à une bouteille isolée loin de son lot) ;
+ *  - 'disperses' : les lots déjà d'un seul tenant gardent leur ordre, les lots dispersés — qu'il
+ *    faudra déplacer de toute façon — passent après eux (on ne décale pas toute une clayette
+ *    pour une bouteille ajoutée à un lot) ;
+ *  - 'alpha' : ordre alphabétique des châteaux, indépendant de l'arrangement.
+ */
+export const VARIANTS = ['position', 'mediane', 'disperses', 'alpha'] as const;
 export type Variant = (typeof VARIANTS)[number];
 
 /** Poids entiers de l'objectif : aucune erreur d'arrondi dans les comparaisons. */
@@ -141,14 +149,22 @@ export function sortedSequence(model: ReorgModel, current: Arrangement, variant:
   const sum = new Float64Array(model.nGroupes);
   const count = new Int32Array(model.nGroupes);
   const positions: number[] = [];
+  const members: number[][] = Array.from({ length: model.nGroupes }, () => []);
   for (let j = 0; j < current.length; j++) {
     const c = current[j]!;
     if (c === VIDE) continue;
     const g = model.classes[c]!.groupe;
     sum[g]! += j;
     count[g]! += 1;
+    members[g]!.push(j);
     positions.push(j);
   }
+  // Médiane (basse) des positions de chaque groupe ; les positions sont déjà croissantes.
+  const median = members.map((list) => (list.length > 0 ? list[(list.length - 1) >> 1]! : 0));
+  // Lot dispersé : ses bouteilles ne sont pas côte à côte sur une même clayette.
+  const scattered = members.map((list) =>
+    list.some((j, k) => k > 0 && (j !== list[k - 1]! + 1 || model.shelfStart[j] !== model.shelfStart[list[k - 1]!])),
+  );
   positions.sort((ja, jb) => {
     const a = model.classes[current[ja]!]!;
     const b = model.classes[current[jb]!]!;
@@ -159,6 +175,14 @@ export function sortedSequence(model: ReorgModel, current: Arrangement, variant:
     if (variant === 'position') {
       // Comparaison exacte des moyennes : sa / na < sb / nb ⇔ sa × nb < sb × na.
       const d = sum[a.groupe]! * count[b.groupe]! - sum[b.groupe]! * count[a.groupe]!;
+      if (d !== 0) return d;
+    } else if (variant === 'mediane') {
+      const d = median[a.groupe]! - median[b.groupe]!;
+      if (d !== 0) return d;
+    } else if (variant === 'disperses') {
+      const d =
+        Number(scattered[a.groupe]) - Number(scattered[b.groupe]) ||
+        sum[a.groupe]! * count[b.groupe]! - sum[b.groupe]! * count[a.groupe]!;
       if (d !== 0) return d;
     }
     // Deux groupes distincts d'une même année ont des châteaux distincts.
@@ -175,20 +199,26 @@ export interface CanonicalSequence {
 }
 
 /**
- * Glouton sur les emplacements en ordre de lecture.
- * « Candidat » d'un emplacement = première bouteille restante de `sorted` compatible
- * avec lui et dont le retrait laisse un reste faisable.
- *  - 'compact' : poser le candidat s'il existe, sinon laisser vide ;
- *  - 'economique' (ordre strict privilégié) : poser le candidat s'il est du même groupe
- *    que la première bouteille restante ; sinon laisser vide si le reste demeure
- *    faisable ; sinon poser le candidat (exception d'ordre imposée par les types).
+ * Glouton sur les emplacements en ordre de lecture, identique dans les deux modes (ils ne
+ * diffèrent que par les poids du placement) : l'ordre des années passe avant le remplissage.
  *
- * Note : la règle d'origine exigeait que le candidat SOIT la première bouteille
- * restante. L'élargir à son groupe (même château, même année : aucun effet sur l'ordre
- * des années) rend σ indépendant de l'ordre des bouteilles à l'intérieur d'un groupe,
- * ce qui garantit la convergence de la stabilisation (voir `planTarget`).
+ * À chaque emplacement, les bouteilles posables sont les premières restantes de chaque forme
+ * compatible dont le retrait laisse un reste faisable. On retient la première dans `sorted`,
+ * avec deux raffinements :
+ *  - à année égale et sur un emplacement « tout », on préfère la forme dont le prochain
+ *    emplacement compatible est le plus lointain : elle n'aura pas d'autre place sans passer
+ *    après des millésimes plus récents (les autres trouveront leur clayette dédiée) ;
+ *  - on ne change pas de vin au milieu d'un lot : le groupe de la dernière bouteille posée
+ *    continue tant qu'il lui reste des bouteilles posables.
+ * La bouteille retenue est posée si elle a l'année de la première bouteille restante (aucune
+ * entorse à l'ordre) ou si elle continue le groupe en cours ; sinon l'emplacement reste vide
+ * tant que le reste demeure faisable, et n'est rempli qu'en dernier recours (exception
+ * d'ordre imposée par les types).
+ *
+ * σ ne dépend pas de l'ordre des bouteilles à l'intérieur d'un groupe, ce qui aide la
+ * stabilisation à converger (voir `planTarget`).
  */
-export function canonicalSequence(model: ReorgModel, sorted: readonly number[], mode: ReorgMode): CanonicalSequence {
+export function canonicalSequence(model: ReorgModel, sorted: readonly number[], _mode?: ReorgMode): CanonicalSequence {
   // Files d'attente par forme (indices dans `sorted`, croissants).
   const queues: number[][] = FORMES.map(() => []);
   sorted.forEach((c, i) => queues[FORME_INDEX[model.classes[c]!.forme]]!.push(i));
@@ -200,39 +230,63 @@ export function canonicalSequence(model: ReorgModel, sorted: readonly number[], 
     throw new Error('Réorganisation impossible : les bouteilles ne tiennent pas dans la cave.');
   }
   const groupAt = (i: number): number => model.classes[sorted[i]!]!.groupe;
+  const yearAt = (i: number): number => model.classes[sorted[i]!]!.annee ?? Infinity;
+
+  // nextFit[f][j] : premier emplacement d'indice > j compatible avec la forme f (Infinity si aucun).
+  const nSlots = model.slots.length;
+  const nextFit: Float64Array[] = FORMES.map(() => new Float64Array(nSlots).fill(Infinity));
+  const upcoming = [Infinity, Infinity, Infinity, Infinity];
+  for (let j = nSlots - 1; j >= 0; j--) {
+    for (let f = 0; f < FORMES.length; f++) nextFit[f]![j] = upcoming[f]!;
+    const t = TYPE_INDEX[model.slots[j]!.type];
+    for (let f = 0; f < FORMES.length; f++) if (t === TOUT || t === f) upcoming[f] = j;
+  }
 
   const sigma: number[] = [];
   const greedySlots: number[] = [];
   let remaining = sorted.length;
-  for (let j = 0; j < model.slots.length && remaining > 0; j++) {
+  let lastGroup = -1;
+  for (let j = 0; j < nSlots && remaining > 0; j++) {
     const t = TYPE_INDEX[model.slots[j]!.type];
     m[t]! -= 1;
-    // `first` : première bouteille restante ; `candidate` : première compatible et faisable.
-    let candidate = -1;
-    let candidateForme = -1;
+    // `first` : première bouteille restante ; `options` : têtes de file posables ici.
     let first = -1;
+    const options: { i: number; f: number }[] = [];
     for (let f = 0; f < FORMES.length; f++) {
       if (n[f] === 0) continue;
       const i = queues[f]![head[f]!]!;
       if (first === -1 || i < first) first = i;
       if (t !== TOUT && t !== f) continue;
-      if (candidate !== -1 && i > candidate) continue;
       n[f]! -= 1;
-      if (isFeasible(n, m)) {
-        candidate = i;
-        candidateForme = f;
-      }
+      if (isFeasible(n, m)) options.push({ i, f });
       n[f]! += 1;
     }
-    if (candidate === -1) {
+    if (options.length === 0) {
       if (!isFeasible(n, m)) throw new Error('Réorganisation : incohérence interne du test de faisabilité.');
       continue;
     }
-    if (mode === 'economique' && groupAt(candidate) !== groupAt(first) && isFeasible(n, m)) continue;
-    head[candidateForme]! += 1;
-    n[candidateForme]! -= 1;
+    let chosen = options.reduce((a, b) => (b.i < a.i ? b : a));
+    const continuing = options
+      .filter((o) => groupAt(o.i) === lastGroup)
+      .reduce<{ i: number; f: number } | undefined>((a, b) => (!a || b.i < a.i ? b : a), undefined);
+    if (continuing) {
+      chosen = continuing;
+    } else {
+      const year = yearAt(chosen.i);
+      for (const o of options) {
+        if (yearAt(o.i) !== year) continue;
+        const far = nextFit[o.f]![j]!;
+        const best = nextFit[chosen.f]![j]!;
+        if (far > best || (far === best && o.i < chosen.i)) chosen = o;
+      }
+    }
+    const inOrder = yearAt(chosen.i) === yearAt(first);
+    if (!inOrder && !continuing && isFeasible(n, m)) continue;
+    head[chosen.f]! += 1;
+    n[chosen.f]! -= 1;
     remaining -= 1;
-    sigma.push(sorted[candidate]!);
+    lastGroup = groupAt(chosen.i);
+    sigma.push(sorted[chosen.i]!);
     greedySlots.push(j);
   }
   return { sigma, greedySlots };
@@ -483,18 +537,24 @@ export function planVariant(model: ReorgModel, current: Arrangement, mode: Reorg
   };
 }
 
-/** Ordre de préférence : moins de déplacements, puis d'exceptions d'ordre, puis de groupes séparés. */
+/**
+ * Ordre de préférence entre deux cibles : d'abord la qualité du tri (moins d'exceptions à
+ * l'ordre des années), puis le coût global — déplacements et lots séparés, un lot séparé
+ * « valant » W_SPLIT déplacements comme dans le placement —, puis le nombre de déplacements.
+ */
 export function compareCandidates(a: Candidate, b: Candidate): number {
-  return a.moves - b.moves || a.exceptionsOrdre - b.exceptionsOrdre || a.groupesSepares - b.groupesSepares;
+  const cost = (c: Candidate): number => 2 * c.moves + 5 * c.groupesSepares; // = 2 × (moves + 2,5 × lots)
+  return a.exceptionsOrdre - b.exceptionsOrdre || cost(a) - cost(b) || a.moves - b.moves;
 }
 
-/** Meilleure cible parmi les variantes (à égalité : la première, 'position'). */
+/** Meilleure cible parmi les variantes (à égalité : la première de `VARIANTS`). */
 export function planOnce(model: ReorgModel, current: Arrangement, mode: ReorgMode): Candidate {
-  const [position, alpha] = VARIANTS.map((variant) => planVariant(model, current, mode, variant)) as [
-    Candidate,
-    Candidate,
-  ];
-  return compareCandidates(alpha, position) < 0 ? alpha : position;
+  let best: Candidate | null = null;
+  for (const variant of VARIANTS) {
+    const candidate = planVariant(model, current, mode, variant);
+    if (!best || compareCandidates(candidate, best) < 0) best = candidate;
+  }
+  return best!;
 }
 
 export interface TargetPlan {
@@ -506,31 +566,24 @@ export interface TargetPlan {
 }
 
 /**
- * Cible STABILISÉE : on replanifie à partir de la cible obtenue tant que cela produit
- * encore des déplacements (au plus `MAX_STABILISATION` fois). La cible renvoyée est
- * alors un point fixe : `planOnce(cible)` ne demande aucun déplacement.
+ * Cible STABILISÉE : on replanifie à partir de la cible obtenue tant que cela produit encore
+ * des déplacements (au plus `MAX_STABILISATION` fois). La cible renvoyée est alors un point
+ * fixe du planificateur : `planOnce(cible)` ne demande aucun déplacement, donc relancer la
+ * réorganisation sur une cave fraîchement rangée ne propose plus rien.
  *
- * Convergence : avec la variante 'alpha', σ ne dépend plus de l'arrangement une fois
- * celui-ci produit par le planificateur (voir `canonicalSequence`) ; chaque
- * replanification qui déplace encore des bouteilles réduit alors strictement les
- * pénalités de vides et de groupes, donc la suite s'arrête. La variante 'position'
- * n'offre pas cette garantie (la position moyenne des groupes bouge quand le type des
- * clayettes disperse les bouteilles) : au-delà de `FREE_STABILISATION` itérations, on
- * n'adopte plus que la cible 'alpha'.
+ * Les replanifications libres convergent presque toujours en une ou deux passes. Par sécurité,
+ * au-delà de `FREE_STABILISATION` passes, on n'adopte plus que la cible de la variante
+ * 'alpha', dont l'ordre σ ne dépend pas de l'arrangement de départ.
  */
 export function planTarget(model: ReorgModel, current: Arrangement, mode: ReorgMode): TargetPlan {
   let target = planOnce(model, current, mode).target;
   // Les replanifications successives raisonnent sur des cibles intermédiaires : à la fin, on
-  // rapproche de nouveau l'ordre interne des groupes de la cave RÉELLE de départ.
+  // rapproche de nouveau l'ordre interne des lots de la cave RÉELLE de départ.
   const settle = (t: Arrangement): Arrangement => keepGroupMembersInPlace(model, current, t);
   for (let iterations = 1; iterations <= MAX_STABILISATION; iterations++) {
-    const [position, alpha] = VARIANTS.map((variant) => planVariant(model, target, mode, variant)) as [
-      Candidate,
-      Candidate,
-    ];
-    if (position.moves === 0 || alpha.moves === 0) return { target: settle(target), stable: true, iterations };
-    target =
-      iterations > FREE_STABILISATION || compareCandidates(alpha, position) < 0 ? alpha.target : position.target;
+    const next = planOnce(model, target, mode);
+    if (next.moves === 0) return { target: settle(target), stable: true, iterations };
+    target = iterations > FREE_STABILISATION ? planVariant(model, target, mode, 'alpha').target : next.target;
   }
   return { target: settle(target), stable: false, iterations: MAX_STABILISATION };
 }

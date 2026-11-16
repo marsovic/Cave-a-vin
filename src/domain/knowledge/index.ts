@@ -82,6 +82,9 @@ function clean(text: string): string {
   return t.replace(/\s+/g, ' ').trim();
 }
 
+/** Longueur minimale d'un nom pour être reconnu à l'intérieur d'une saisie plus longue. */
+const MIN_CONTAINED = 6;
+
 interface IndexEntry {
   key: string;
   info: AppellationInfo;
@@ -117,17 +120,19 @@ export function findAppellation(name: string): AppellationInfo | undefined {
   const direct = exact.get(query);
   if (direct) return direct;
 
+  // La saisie contient le nom d'une appellation (mots entiers) : la plus longue l'emporte
+  // (« Chianti Classico Riserva » → Chianti Classico, pas Chianti). Les noms très courts
+  // (« Asti », « Port », « Bourg »…) ne sont acceptés qu'en correspondance exacte.
+  const padded = ` ${query} `;
+  for (const entry of entries) {
+    if (entry.key.length >= MIN_CONTAINED && padded.includes(` ${entry.key} `)) return entry.info;
+  }
+
   // Sans les mentions (« premier cru », « villages », « rouge »…).
   const stripped = query.replace(QUALIFIERS, ' ').replace(/\s+/g, ' ').trim();
   if (stripped && stripped !== query) {
     const base = exact.get(stripped);
     if (base) return base;
-  }
-
-  // La saisie contient le nom d'une appellation (mots entiers) : la plus longue l'emporte.
-  const padded = ` ${query} `;
-  for (const entry of entries) {
-    if (entry.key.length >= 4 && padded.includes(` ${entry.key} `)) return entry.info;
   }
 
   // La saisie est le début (mots entiers) d'une seule appellation : « chateauneuf » → Châteauneuf-du-Pape.
@@ -215,6 +220,8 @@ export function genericGarde(wine: Pick<WineFields, 'robe' | 'cepages'>): [numbe
     case 'rose':
       return [0, 2];
     case 'blanc-liquoreux':
+      // Les muscats doux se boivent jeunes, sur le fruit.
+      if (has(['muscat', 'moscato', 'moscatel'])) return [0, 5];
       return [5, 25];
     case 'blanc':
       if (has(BLANCS_DE_GARDE)) return [2, 10];

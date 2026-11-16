@@ -41,7 +41,7 @@ describe('poids', () => {
     expect(REORG_WEIGHTS.economique).toBe(WEIGHTS_ECONOMIQUE);
     expect(REORG_WEIGHTS.compact).toBe(WEIGHTS_COMPACT);
     expect(LEXICOGRAPHIC).toEqual({ economique: false, compact: true });
-    expect(MAX_STABILISATION).toBe(6);
+    expect(MAX_STABILISATION).toBe(8);
   });
 
   it('mode économique : entiers proportionnels aux poids, sans coût de trou', () => {
@@ -156,12 +156,43 @@ describe('canonicalSequence — glouton respectant les types', () => {
     expect(greedySlots).toEqual([2, 3, 4]);
   });
 
-  it('compact : remplit la clayette dédiée avec la première bouteille compatible', () => {
+  it('compact : même ordre que le mode économique — le tri par année passe avant le remplissage', () => {
     const cellar = rows('bordeaux');
     const { model, arrangement } = buildModel(cellar);
     const { sigma, greedySlots } = canonicalSequence(model, sortedSequence(model, arrangement, 'position'), 'compact');
-    expect(names(cellar, model, sigma)).toEqual(['Pommard 2015', 'Latour 1990', 'Margaux 1995']);
-    expect(greedySlots).toEqual([0, 2, 3]);
+    expect(names(cellar, model, sigma)).toEqual(['Latour 1990', 'Margaux 1995', 'Pommard 2015']);
+    expect(greedySlots).toEqual([2, 3, 4]);
+  });
+
+  it('à année égale, la place « tout » revient à la bouteille qui n\'a pas de clayette dédiée avant longtemps', () => {
+    // tout×1, champagne×2, bordeaux×1 : le bordeaux 2005 doit prendre la place « tout »,
+    // sinon il se retrouverait après le champagne 2010.
+    const cellar = cellarFromRows([
+      { type: 'tout', slots: [w('Bollinger', 2005, 'champagne')] },
+      { type: 'champagne', slots: [w('Ruinart', 2010, 'champagne'), null] },
+      { type: 'bordeaux', slots: [w('Margaux', 2005)] },
+    ]);
+    const { model, arrangement } = buildModel(cellar);
+    const { sigma, greedySlots } = canonicalSequence(model, sortedSequence(model, arrangement, 'position'));
+    expect(names(cellar, model, sigma)).toEqual(['Margaux 2005', 'Bollinger 2005', 'Ruinart 2010']);
+    expect(greedySlots).toEqual([0, 1, 2]);
+  });
+
+  it('un lot entamé sur une clayette dédiée y continue plutôt que d\'être coupé', () => {
+    // Deux bourgognes 2016 du même domaine, des bordeaux plus anciens : une fois le premier
+    // bourgogne posé (forcé par le manque de places « tout »), le second le suit.
+    const cellar = cellarFromRows([
+      { type: 'bourgogne', slots: [null, null, null] },
+      { type: 'tout', slots: [w('Latour', 2010), w('Pio', 2016, 'bourgogne'), w('Pio', 2016, 'bourgogne')] },
+      { type: 'bordeaux', slots: [w('Margaux', 2012), w('Palmer', 2014)] },
+    ]);
+    const { model, arrangement } = buildModel(cellar);
+    const { sigma, greedySlots } = canonicalSequence(model, sortedSequence(model, arrangement, 'position'));
+    const order = names(cellar, model, sigma);
+    const first = order.indexOf('Pio 2016');
+    expect(order[first + 1]).toBe('Pio 2016');
+    // Les deux bouteilles du lot sont sur la même clayette, côte à côte.
+    expect(greedySlots[first + 1]! - greedySlots[first]!).toBe(1);
   });
 
   it('économique : une exception d\'ordre n\'est acceptée que si elle est inévitable', () => {

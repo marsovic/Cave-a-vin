@@ -1465,3 +1465,10 @@ describe('performance', () => {
     expect(duree).toBeLessThan(200);
   });
 });
+
+describe('parseCellarCsv — lignes commençant par « # »', () => {
+  it('une ligne de données dont le nom commence par # n\'est pas prise pour un commentaire', () => {
+    const res = parseCellarCsv('chateau;appellation;annee\n#1 Cuvée;Margaux;2015\nB;Pauillac;2010\n# vrai commentaire');
+    expect(res.cellar?.bottles.map((b) => b.chateau)).toEqual(['#1 Cuvée', 'B']);
+  });
+});
