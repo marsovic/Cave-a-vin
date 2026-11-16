@@ -72,8 +72,9 @@ async function shot(page, name) {
   await page.screenshot({ path: join(OUT, `${name}.png`) });
 }
 
-async function open(browser, name, contextOptions) {
+async function open(browser, name, contextOptions, setup) {
   const context = await browser.newContext({ ...contextOptions, serviceWorkers: 'block', locale: 'fr-FR' });
+  if (setup) await setup(context);
   const page = await context.newPage();
   page.on('console', (m) => {
     if (m.type() === 'error') problems.push(`[${name}] console : ${m.text()}`);
@@ -346,10 +347,72 @@ async function phone(browser) {
   await context.close();
 }
 
+/** L'assistant IA est simulé : /api/ai répond comme le ferait Groq (aucune clé nécessaire). */
+async function assistant(browser) {
+  console.log('\nAssistant IA (simulé)');
+  const calls = [];
+  const { context, page } = await open(browser, 'ia', { viewport: { width: 1280, height: 860 } }, async (ctx) => {
+    await ctx.route('**/api/ai', async (route) => {
+      const request = route.request();
+      if (request.method() === 'GET') {
+        await route.fulfill({ json: { configured: true, codeRequired: false, codeOk: true, models: { texte: 't', vision: 'v', web: 'w' } } });
+        return;
+      }
+      const body = request.postDataJSON();
+      calls.push(body.role);
+      const schema = body.json && typeof body.json === 'object' ? body.json.name : null;
+      const lot = Array.from({ length: 25 }, (_, i) => i);
+      let content = 'Selon plusieurs critiques, ces vins sont à leur apogée 【1†L1-L4】.';
+      if (body.role === 'vision') {
+        content = JSON.stringify({ chateau: 'Château Lynch-Bages', appellation: 'Pauillac', annee: 2016, cepages: ['Cabernet Sauvignon', 'Merlot'], robe: 'rouge', forme: 'bordeaux', cepages_deduits: true, lisible: true, note: null });
+      } else if (schema === 'fenetres_degustation') {
+        content = JSON.stringify({ fenetres: lot.map((i) => ({ i, debut: 2026, fin: 2027, note: 'Apogée atteinte.' })) });
+      } else if (schema === 'accords_mets_vin') {
+        content = JSON.stringify({ accords: lot.map((i) => ({ i, score: i === 0 ? 97 : 20, raison: 'Avis du sommelier simulé.' })) });
+      }
+      await route.fulfill({ json: { content, modele: 'simulé', web: body.role === 'web' } });
+    });
+  });
+  await loadDemo(page);
+  const initial = await readCellar(page);
+
+  // Scan d'étiquette : la photo est lue par le modèle de vision, puis confirmée.
+  await page.locator('input[type="file"][capture]').setInputFiles(join(here, '..', 'public', 'icons', 'icon-192.png'));
+  await page.waitForSelector('.scan-result');
+  check('scan : les champs lus sont proposés', /Lynch-Bages/.test(await page.locator('.scan-fields').innerText()));
+  await shot(page, 'ia-01-scan');
+  await page.getByRole('button', { name: 'Remplir le formulaire' }).click();
+  check('scan : le formulaire est prérempli', (await field(page, 'chateau').inputValue()) === 'Château Lynch-Bages' && (await field(page, 'annee').inputValue()) === '2016');
+  check('scan : un seul appel au modèle de vision', calls.filter((r) => r === 'vision').length === 1);
+  await page.locator('.target-bar button[aria-label="Effacer le formulaire"]').click();
+
+  // À boire rapidement : estimation locale immédiate, puis réponse de l'IA (avec recherche web).
+  await action(page, 'À boire').click();
+  await page.waitForSelector('.side-panel .panel-title:has-text("À boire rapidement")');
+  await page.waitForSelector('.side-panel .badge:has-text("Assistant IA")', { timeout: 20000 });
+  const vintages = new Set(initial.bottles.filter((b) => b.collection !== 'oui' && b.annee).map((b) => `${b.chateau}|${b.appellation}|${b.annee}|${b.robe}`)).size;
+  check('IA : fenêtres de dégustation appliquées à tous les vins millésimés hors collection', (await page.locator('.side-panel .result-item').count()) === vintages, `${vintages} vins attendus`);
+  check('IA : recherche web puis mise en forme', calls.includes('web') && calls.includes('texte'));
+  await shot(page, 'ia-02-a-boire');
+  const collectionShown = await page.locator('.slot[data-collection][data-status]').count();
+  check('IA : les bouteilles de collection sont exclues des conseils', collectionShown === 0);
+
+  // Accord : seul le premier vin de chaque lot est jugé adapté par l'IA simulée.
+  await page.locator('.f-plat input').fill('risotto aux cèpes');
+  await action(page, 'Accord').click();
+  await page.waitForSelector('.side-panel .panel-title:has-text("Accord mets-vin")');
+  await page.waitForFunction(() => !document.querySelector('.banner-busy'), null, { timeout: 20000 });
+  const pairings = await page.locator('.side-panel .result-item').count();
+  check('IA : les notes d\'accord de l\'IA remplacent les règles locales', pairings >= 1 && pairings <= 5, `${pairings} vin(s)`);
+  await shot(page, 'ia-03-accord');
+  await context.close();
+}
+
 const browser = await chromium.launch();
 try {
   await desktop(browser);
   await phone(browser);
+  await assistant(browser);
 } catch (error) {
   failures += 1;
   console.error(`\nErreur inattendue : ${error.stack ?? error}`);
