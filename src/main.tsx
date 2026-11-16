@@ -26,7 +26,7 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
         s.openDialog({
           kind: 'confirm',
           title: 'Nouvelle version disponible',
-          message: 'Bacchus SmartCellar a été mis à jour. Vos données sont conservées.',
+          message: 'DumbCellar a été mis à jour. Vos données sont conservées.',
           confirmLabel: 'Mettre à jour maintenant',
           onConfirm: () => void update(true),
         });

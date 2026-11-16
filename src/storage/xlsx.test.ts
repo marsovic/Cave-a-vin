@@ -7,7 +7,7 @@ import { referenceCellar } from '../domain/reference';
 import { readTextFile } from './transfer';
 import { isXlsx, xlsxToCsv } from './xlsx';
 
-const FIXTURE = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures/bacchus-smartcellar-2026-11-14.xlsx');
+const FIXTURE = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures/cave-origine-2026-11-14.xlsx');
 
 describe('classeur Excel (.xlsx)', () => {
   const bytes = new Uint8Array(readFileSync(FIXTURE));

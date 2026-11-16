@@ -189,14 +189,14 @@ export function FileDialog(): ReactNode {
         </h3>
         <div className="button-row">
           <button type="button" className="btn" onClick={loadReference}>
-            Charger la cave Bacchus (139 bouteilles)
+            Charger la cave de référence (139 bouteilles)
           </button>
           <button type="button" className="btn" onClick={loadDemo}>
             Charger la cave d'exemple
           </button>
-          <a className="btn btn-ghost" href="/cave-bacchus.csv" download="bacchus-smartcellar.csv">
+          <a className="btn btn-ghost" href="/cave-reference.csv" download="dumbcellar.csv">
             <Icon name="download" size={17} />
-            Fichier CSV de la cave Bacchus
+            Fichier CSV de la cave de référence
           </a>
           <a className="btn btn-ghost" href="/exemple-cave.csv" download="exemple-cave.csv">
             <Icon name="download" size={17} />

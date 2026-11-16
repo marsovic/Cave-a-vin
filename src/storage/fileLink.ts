@@ -57,19 +57,21 @@ export interface HandleStore {
   clear(): Promise<void>;
 }
 
-const DB_NAME = 'bacchus';
+const DB_NAME = 'dumbcellar';
+/** Base du temps où l'application s'appelait autrement : son descripteur est repris une fois, puis elle est supprimée. */
+const LEGACY_DB_NAME = 'bacchus';
 const STORE_NAME = 'handles';
 const HANDLE_KEY = 'cave';
-const FILE_TYPES = [{ description: 'Cave Bacchus (CSV)', accept: { 'text/csv': ['.csv'] } }];
+const FILE_TYPES = [{ description: 'Cave DumbCellar (CSV)', accept: { 'text/csv': ['.csv'] } }];
 const BOM = '﻿';
 
-function openDb(): Promise<IDBDatabase> {
+function openDb(name: string = DB_NAME): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
       reject(new Error('IndexedDB indisponible'));
       return;
     }
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(name, 1);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
     };
@@ -79,8 +81,12 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-function idbRun<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return openDb().then(
+function idbRun<T>(
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
+  name: string = DB_NAME,
+): Promise<T> {
+  return openDb(name).then(
     (db) =>
       new Promise<T>((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, mode);
@@ -101,11 +107,33 @@ function idbRun<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDB
   );
 }
 
+function asHandle(value: unknown): FileHandleLike | null {
+  return value && typeof value === 'object' && 'getFile' in value ? (value as FileHandleLike) : null;
+}
+
+/**
+ * Reprend le fichier lié du temps de l'ancien nom de l'application : le descripteur est
+ * recopié dans la base actuelle, puis l'ancienne base est supprimée. `null` s'il n'y en a pas.
+ */
+async function migrateLegacyHandle(): Promise<FileHandleLike | null> {
+  try {
+    // Sans `databases()`, ouvrir l'ancienne base la créerait : on s'abstient.
+    if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') return null;
+    if (!(await indexedDB.databases()).some((db) => db.name === LEGACY_DB_NAME)) return null;
+    const handle = asHandle(await idbRun<unknown>('readonly', (s) => s.get(HANDLE_KEY), LEGACY_DB_NAME));
+    if (handle) await idbRun('readwrite', (s) => s.put(handle, HANDLE_KEY));
+    indexedDB.deleteDatabase(LEGACY_DB_NAME);
+    return handle;
+  } catch {
+    return null;
+  }
+}
+
 const indexedDbStore: HandleStore = {
   async get() {
     try {
-      const value = await idbRun<unknown>('readonly', (s) => s.get(HANDLE_KEY));
-      return value && typeof value === 'object' && 'getFile' in value ? (value as FileHandleLike) : null;
+      const handle = asHandle(await idbRun<unknown>('readonly', (s) => s.get(HANDLE_KEY)));
+      return handle ?? (await migrateLegacyHandle());
     } catch {
       return null;
     }
@@ -199,7 +227,7 @@ export async function pickLinkedFile(): Promise<LinkedFileInfo | null> {
   const w = pickerWindow();
   if (!w?.showOpenFilePicker) throw new Error('Ce navigateur ne permet pas de lier un fichier.');
   try {
-    const [handle] = await w.showOpenFilePicker({ id: 'bacchus-cave', multiple: false, types: FILE_TYPES });
+    const [handle] = await w.showOpenFilePicker({ id: 'dumbcellar-cave', multiple: false, types: FILE_TYPES });
     if (!handle) return null;
     const info = await adopt(handle);
     if (info.permission !== 'granted') info.permission = await requestLinkPermission();
@@ -215,7 +243,7 @@ export async function createLinkedFile(suggestedName: string): Promise<LinkedFil
   const w = pickerWindow();
   if (!w?.showSaveFilePicker) throw new Error('Ce navigateur ne permet pas de lier un fichier.');
   try {
-    const handle = await w.showSaveFilePicker({ id: 'bacchus-cave', suggestedName, types: FILE_TYPES });
+    const handle = await w.showSaveFilePicker({ id: 'dumbcellar-cave', suggestedName, types: FILE_TYPES });
     return await adopt(handle);
   } catch (error) {
     if (isAbort(error)) return null;

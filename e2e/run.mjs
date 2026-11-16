@@ -1,4 +1,4 @@
-// Parcours de bout en bout de Bacchus SmartCellar dans un vrai navigateur (Chromium, via Playwright).
+// Parcours de bout en bout de DumbCellar dans un vrai navigateur (Chromium, via Playwright).
 //
 //   npm run build && npm run preview      (dans un terminal)
 //   npm run e2e                           (dans un autre)
@@ -45,7 +45,7 @@ function check(name, condition, detail = '') {
 /** Lit la cave enregistrée par l'application (copie de travail CSV). */
 async function readCellar(page) {
   return page.evaluate(() => {
-    const csv = localStorage.getItem('bacchus.cave.csv') ?? '';
+    const csv = localStorage.getItem('dumbcellar.cave.csv') ?? '';
     const lines = csv.split(/\r?\n/).filter(Boolean);
     // Colonnes du fichier → noms utilisés par les contrôles ci-dessous.
     const alias = { type: 'enregistrement', capacite: 'emplacements', type_clayette: 'type', nom: 'chateau', millesime: 'annee', place: 'rang' };
@@ -279,7 +279,7 @@ async function desktop(browser) {
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Télécharger le CSV' }).click();
   const file = await download;
-  check('export : fichier CSV téléchargé', /^bacchus-smartcellar-\d{4}-\d{2}-\d{2}\.csv$/.test(file.suggestedFilename()), file.suggestedFilename());
+  check('export : fichier CSV téléchargé', /^dumbcellar-\d{4}-\d{2}-\d{2}\.csv$/.test(file.suggestedFilename()), file.suggestedFilename());
   await page.keyboard.press('Escape');
 
   // --- Persistance après rechargement ---
@@ -424,44 +424,44 @@ async function assistant(browser) {
 
 /** La cave réelle modélisée : 11 clayettes, 139 bouteilles, armoire pleine. */
 async function reference(browser) {
-  console.log('\nCave Bacchus (armoire réelle, pleine)');
-  const { context, page } = await open(browser, 'bacchus', { viewport: { width: 1440, height: 900 } });
-  await page.getByRole('button', { name: /Charger la cave Bacchus/ }).click();
+  console.log('\nCave de référence (armoire réelle, pleine)');
+  const { context, page } = await open(browser, 'reference', { viewport: { width: 1440, height: 900 } });
+  await page.getByRole('button', { name: /Charger la cave de référence/ }).click();
   await page.waitForFunction(() => document.querySelectorAll('.slot[data-robe]').length === 139);
   const cave = await readCellar(page);
-  check('cave Bacchus : 11 clayettes (9 × 13 bordeaux, 12 bourgogne, 10 champagne)',
+  check('cave de référence : 11 clayettes (9 × 13 bordeaux, 12 bourgogne, 10 champagne)',
     cave.shelves.map((s) => `${s.emplacements}${s.type[0]}`).join(' ') === '13b 13b 13b 13b 13b 13b 13b 13b 13b 12b 10c',
     cave.shelves.map((s) => `${s.emplacements}${s.type[0]}`).join(' '));
-  check('cave Bacchus : 139 bouteilles, identifiants d\'origine conservés',
+  check('cave de référence : 139 bouteilles, identifiants d\'origine conservés',
     cave.bottles.length === 139 && cave.bottles.some((b) => b.id === '5b4de640-fb29-43e6-8a7c-3759285376fc' && b.chateau === 'Château Tayac' && b.rang === '2'),
     `${cave.bottles.length} bouteilles`);
-  check('cave Bacchus : 13 bouteilles de collection', (await page.locator('.slot[data-collection]').count()) === 13 && cave.bottles.filter((b) => b.collection === 'oui').length === 13);
+  check('cave de référence : 13 bouteilles de collection', (await page.locator('.slot[data-collection]').count()) === 13 && cave.bottles.filter((b) => b.collection === 'oui').length === 13);
   const box = await page.locator('.cave-viewport').boundingBox();
-  check('cave Bacchus : le schéma tient à l\'écran', Boolean(box) && box.y + box.height <= 900 + 1, JSON.stringify(box));
-  await shot(page, 'bacchus-01-cave');
+  check('cave de référence : le schéma tient à l\'écran', Boolean(box) && box.y + box.height <= 900 + 1, JSON.stringify(box));
+  await shot(page, 'reference-01-cave');
 
   await field(page, 'appellation').fill('Haut-Médoc');
   await page.waitForTimeout(150);
   const hautMedoc = cave.bottles.filter((b) => b.appellation === 'Haut-Médoc').length;
-  check('cave Bacchus : recherche « Haut-Médoc »', hautMedoc === 42 && (await page.locator('.slot[data-tone="match"]').count()) === 42, `${hautMedoc}`);
+  check('cave de référence : recherche « Haut-Médoc »', hautMedoc === 42 && (await page.locator('.slot[data-tone="match"]').count()) === 42, `${hautMedoc}`);
   await field(page, 'annee').fill('2020');
   await page.waitForTimeout(150);
   const both = cave.bottles.filter((b) => b.appellation === 'Haut-Médoc' && b.annee === '2020').length;
-  check('cave Bacchus : conjonction appellation + année', (await page.locator('.slot[data-tone="match"]').count()) === both, `${both}`);
-  await shot(page, 'bacchus-02-recherche');
+  check('cave de référence : conjonction appellation + année', (await page.locator('.slot[data-tone="match"]').count()) === both, `${both}`);
+  await shot(page, 'reference-02-recherche');
   await field(page, 'appellation').fill('');
   await field(page, 'annee').fill('');
 
   await action(page, 'Places libres').click();
   await page.waitForTimeout(150);
-  check('cave Bacchus : aucune place libre', (await page.locator('.slot[data-marker="libre"]').count()) === 0);
+  check('cave de référence : aucune place libre', (await page.locator('.slot[data-marker="libre"]').count()) === 0);
 
   // Réorganisation d'une armoire pleine : il faut poser une bouteille hors de la cave.
   await action(page, 'Réorganiser').click();
   const start = page.getByRole('button', { name: /Commencer le guidage/ });
   await start.waitFor();
-  check('cave Bacchus : un plan de réorganisation est proposé', await start.isEnabled());
-  await shot(page, 'bacchus-03-reorg-apercu');
+  check('cave de référence : un plan de réorganisation est proposé', await start.isEnabled());
+  await shot(page, 'reference-03-reorg-apercu');
   await start.click();
   await page.waitForSelector('.banner-reorg');
   const steps = Number(/\/\s*(\d+)/.exec(await page.locator('.banner-step').innerText())?.[1] ?? 0);
@@ -473,28 +473,116 @@ async function reference(browser) {
     .sort((a, b) => Number(a.clayette) - Number(b.clayette) || Number(a.rang) - Number(b.rang))
     .filter((b) => b.forme === 'bordeaux' && b.annee !== '')
     .map((b) => Number(b.annee));
-  check('cave Bacchus : guidage mené au bout, 139 bouteilles toujours là', sorted.bottles.length === 139 && steps > 0, `${steps} étape(s)`);
-  check('cave Bacchus : les bordeaux sont triés du plus ancien au plus récent', years.every((y, i) => i === 0 || years[i - 1] <= y), years.join(' '));
-  check('cave Bacchus : identifiants inchangés après réorganisation',
+  check('cave de référence : guidage mené au bout, 139 bouteilles toujours là', sorted.bottles.length === 139 && steps > 0, `${steps} étape(s)`);
+  check('cave de référence : les bordeaux sont triés du plus ancien au plus récent', years.every((y, i) => i === 0 || years[i - 1] <= y), years.join(' '));
+  check('cave de référence : identifiants inchangés après réorganisation',
     new Set(sorted.bottles.map((b) => b.id)).size === 139 && cave.bottles.every((b) => sorted.bottles.some((x) => x.id === b.id)));
-  await shot(page, 'bacchus-04-reorg-fini');
+  await shot(page, 'reference-04-reorg-fini');
 
   // Import direct du classeur Excel d'origine (.xlsx).
   await page.getByRole('button', { name: /^Fichier/ }).click();
-  await page.getByRole('dialog').locator('input[type="file"]').setInputFiles(new URL('../src/storage/fixtures/bacchus-smartcellar-2026-11-14.xlsx', import.meta.url).pathname);
+  await page.getByRole('dialog').locator('input[type="file"]').setInputFiles(new URL('../src/storage/fixtures/cave-origine-2026-11-14.xlsx', import.meta.url).pathname);
   await page.getByRole('dialog').getByRole('button', { name: 'Remplacer' }).click();
   await page.waitForTimeout(300);
   const fromXlsx = await readCellar(page);
-  check('cave Bacchus : import du classeur .xlsx d\'origine',
+  check('cave de référence : import du classeur .xlsx d\'origine',
     fromXlsx.bottles.length === 139 && fromXlsx.shelves.length === 11 && cave.bottles.every((b) => fromXlsx.bottles.some((x) => x.id === b.id && x.clayette === b.clayette && x.rang === b.rang)),
     `${fromXlsx.bottles.length} bouteilles`);
   await context.close();
+}
+
+/** Données enregistrées quand l'application portait un autre nom : reprises au premier lancement. */
+async function reprise(browser) {
+  console.log('\nReprise des données enregistrées sous l\'ancien nom');
+  const csv = (nom, id) =>
+    'type;id;capacite;type_clayette;nom;appellation;millesime;cepages;robe;forme;clayette;place;collection\r\n' +
+    'clayette;;6;tout;;;;;;;1;;\r\n' +
+    `bouteille;${id};;;${nom};Pauillac;2010;;Rouge;bordeaux;1;2;non\r\n`;
+  const prefs = JSON.stringify({ theme: 'auto', zoom: 'auto', reorgMode: 'compact', accueilVu: true });
+  const start = async (name) => {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', locale: 'fr-FR' });
+    const page = await context.newPage();
+    page.on('pageerror', (e) => problems.push(`[${name}] exception : ${e.message}`));
+    // Page du même site qui ne lance pas l'application : on y prépare les anciennes données.
+    await page.goto(`${BASE}/manifest.webmanifest`);
+    return { context, page };
+  };
+
+  // 1. Copie de travail et préférences (localStorage).
+  {
+    const { context, page } = await start('reprise');
+    await page.evaluate(({ text, prefs }) => {
+      localStorage.setItem('bacchus.cave.csv', text);
+      localStorage.setItem('bacchus.prefs', prefs);
+    }, { text: csv('Château Ancien', 'anc-1'), prefs });
+    await page.goto(BASE);
+    await page.waitForSelector('.app');
+    await page.waitForFunction(() => document.querySelectorAll('.slot[data-robe]').length === 1);
+    const cave = await readCellar(page);
+    check('reprise : la cave enregistrée sous l\'ancien nom est retrouvée', cave.bottles.length === 1 && cave.bottles[0].chateau === 'Château Ancien' && cave.bottles[0].id === 'anc-1', JSON.stringify(cave.bottles));
+    check('reprise : pas d\'écran de bienvenue (préférences reprises)', (await page.getByRole('dialog').count()) === 0);
+    const keys = await page.evaluate(() => Object.keys(localStorage));
+    check('reprise : les anciennes clés ont disparu', keys.some((k) => k.startsWith('dumbcellar.')) && !keys.some((k) => k.startsWith('bacchus.')), keys.join(' '));
+    await context.close();
+  }
+
+  // 2. Fichier lié : le descripteur conservé dans IndexedDB passe de l'ancienne base à la nouvelle.
+  // (Un vrai descripteur ne s'obtient que par le sélecteur de fichiers : on en simule un, illisible.)
+  {
+    const { context, page } = await start('reprise-fichier');
+    const ready = await page.evaluate(async (prefs) => {
+      if (typeof window.showOpenFilePicker !== 'function' || typeof indexedDB.databases !== 'function') return false;
+      localStorage.setItem('bacchus.prefs', prefs);
+      await new Promise((resolve, reject) => {
+        const request = indexedDB.open('bacchus', 1);
+        request.onupgradeneeded = () => request.result.createObjectStore('handles');
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const tx = request.result.transaction('handles', 'readwrite');
+          tx.objectStore('handles').put({ name: 'ma-cave.csv', getFile: 'simulé' }, 'cave');
+          tx.oncomplete = () => {
+            request.result.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      });
+      return true;
+    }, prefs);
+    if (!ready) {
+      console.log('  – fichier lié : non testé (API absente de ce navigateur)');
+    } else {
+      await page.goto(BASE);
+      await page.waitForSelector('.app');
+      await page.waitForFunction(async () => !(await indexedDB.databases()).some((db) => db.name === 'bacchus'), null, { timeout: 8000 }).catch(() => {});
+      const state = await page.evaluate(async () => {
+        const names = (await indexedDB.databases()).map((db) => db.name);
+        const stored = await new Promise((resolve) => {
+          const request = indexedDB.open('dumbcellar', 1);
+          request.onerror = () => resolve(null);
+          request.onsuccess = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains('handles')) return resolve(null);
+            const get = db.transaction('handles', 'readonly').objectStore('handles').get('cave');
+            get.onsuccess = () => resolve(get.result ?? null);
+            get.onerror = () => resolve(null);
+          };
+        });
+        return { names, stored };
+      });
+      check('reprise : le descripteur du fichier lié passe dans la nouvelle base', state.stored?.name === 'ma-cave.csv', JSON.stringify(state.stored));
+      check('reprise : l\'ancienne base est supprimée', state.names.includes('dumbcellar') && !state.names.includes('bacchus'), state.names.join(' '));
+      check('reprise : un fichier lié illisible est signalé sans bloquer l\'application', (await page.locator('.app').count()) === 1 && (await page.locator('.app').innerText()).includes('ma-cave.csv'));
+    }
+    await context.close();
+  }
 }
 
 const browser = await chromium.launch();
 try {
   await desktop(browser);
   await reference(browser);
+  await reprise(browser);
   await phone(browser);
   await assistant(browser);
 } catch (error) {

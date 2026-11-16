@@ -13,7 +13,7 @@ import {
   type FileHandleLike,
   type HandleStore,
 } from './fileLink';
-import { loadJson, loadText, removeKey, saveJson, saveText } from './localStore';
+import { LEGACY_PREFIX, STORAGE_KEYS, loadJson, loadText, removeKey, saveJson, saveText } from './localStore';
 import { buildMailto, canShareCsv, csvFile, datedFilename, decodeText, extractCsvFromText, shareCsv } from './transfer';
 
 describe('stockage du navigateur', () => {
@@ -48,6 +48,49 @@ describe('stockage du navigateur', () => {
   });
 });
 
+describe('reprise des données enregistrées sous l’ancien nom de l’application', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('lit l’ancienne clé, la déplace sous le nouveau préfixe, puis l’oublie', () => {
+    localStorage.setItem(`${LEGACY_PREFIX}cave.csv`, 'type;id\r\n');
+    expect(loadText(STORAGE_KEYS.csv)).toBe('type;id\r\n');
+    expect(localStorage.getItem(STORAGE_KEYS.csv)).toBe('type;id\r\n');
+    expect(localStorage.getItem(`${LEGACY_PREFIX}cave.csv`)).toBeNull();
+    expect(loadText(STORAGE_KEYS.csv)).toBe('type;id\r\n');
+  });
+
+  it('toutes les clés de l’application sont reprises (JSON compris)', () => {
+    for (const key of Object.values(STORAGE_KEYS)) {
+      localStorage.setItem(key.replace('dumbcellar.', LEGACY_PREFIX), JSON.stringify({ cle: key }));
+    }
+    for (const key of Object.values(STORAGE_KEYS)) expect(loadJson(key, null)).toEqual({ cle: key });
+    expect(Object.keys(localStorage).filter((k) => k.startsWith(LEGACY_PREFIX))).toEqual([]);
+  });
+
+  it('la valeur actuelle prime sur l’ancienne', () => {
+    localStorage.setItem(`${LEGACY_PREFIX}prefs`, '{"theme":"sombre"}');
+    localStorage.setItem(STORAGE_KEYS.prefs, '{"theme":"clair"}');
+    expect(loadJson(STORAGE_KEYS.prefs, {})).toEqual({ theme: 'clair' });
+  });
+
+  it('écrire ou supprimer une clé efface aussi l’ancienne, qui ne peut plus revenir', () => {
+    localStorage.setItem(`${LEGACY_PREFIX}reorg.session`, '{"index":3}');
+    removeKey(STORAGE_KEYS.reorg);
+    expect(loadText(STORAGE_KEYS.reorg)).toBeNull();
+
+    localStorage.setItem(`${LEGACY_PREFIX}cave.csv`, 'ancienne');
+    saveText(STORAGE_KEYS.csv, 'nouvelle');
+    removeKey(STORAGE_KEYS.csv);
+    expect(loadText(STORAGE_KEYS.csv)).toBeNull();
+  });
+
+  it('ne touche pas aux clés qui ne sont pas celles de l’application', () => {
+    localStorage.setItem(`${LEGACY_PREFIX}autre`, 'x');
+    expect(loadText('autre')).toBeNull();
+    expect(localStorage.getItem(`${LEGACY_PREFIX}autre`)).toBe('x');
+  });
+});
+
 describe('décodage des fichiers', () => {
   const bytes = (...values: number[]): Uint8Array => new Uint8Array(values);
 
@@ -72,7 +115,7 @@ describe('export', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('nom de fichier daté et fichier avec BOM', async () => {
-    expect(datedFilename(new Date(2026, 10, 6))).toBe('bacchus-smartcellar-2026-11-06.csv');
+    expect(datedFilename(new Date(2026, 10, 6))).toBe('dumbcellar-2026-11-06.csv');
     const file = csvFile('a;b', 'cave.csv');
     expect(file.name).toBe('cave.csv');
     expect(file.type).toBe('text/csv');

@@ -1,4 +1,4 @@
-# Bacchus SmartCellar
+# DumbCellar
 
 Application web pour gérer une cave à vin de type **armoire réfrigérée** : un schéma des clayettes toujours à l'écran, un formulaire permanent qui sert à chercher, ajouter et cibler les bouteilles, une réorganisation guidée pas à pas, et un sommelier (base de connaissances embarquée, affinée par l'IA Groq si elle est configurée).
 
@@ -43,7 +43,7 @@ Dans le navigateur de votre appareil, et dans le fichier CSV que vous liez ou ex
 
 ### Format du fichier CSV
 
-Texte UTF-8, séparateur `;`, lisible et modifiable dans Excel. Une ligne par clayette (configuration), puis une ligne par bouteille. Le fichier exporté s'appelle `bacchus-smartcellar-AAAA-MM-JJ.csv` :
+Texte UTF-8, séparateur `;`, lisible et modifiable dans Excel. Une ligne par clayette (configuration), puis une ligne par bouteille. Le fichier exporté s'appelle `dumbcellar-AAAA-MM-JJ.csv` :
 
 ```csv
 type;id;capacite;type_clayette;nom;appellation;millesime;cepages;robe;forme;clayette;place;collection
@@ -67,7 +67,7 @@ bouteille;8c1f02aa-0d6e-4c1b-9d57-0c5a3a6f2b11;;;Dom Pérignon;Champagne;;Chardo
 | `collection` | — | `oui` / `non` |
 
 - Une bouteille ne peut aller que sur une clayette de sa forme ou sur une clayette `tout`.
-- **La cave modélisée** — l'armoire réelle : 9 clayettes de 13 places « bordeaux », 1 de 12 places « bourgogne », 1 de 10 places « champagne », et ses 139 bouteilles — est fournie avec l'application : écran d'accueil ou *Fichier → Charger la cave Bacchus* ([`public/cave-bacchus.csv`](public/cave-bacchus.csv)). C'est aussi la disposition proposée par défaut pour une cave vide.
+- **La cave modélisée** — l'armoire réelle : 9 clayettes de 13 places « bordeaux », 1 de 12 places « bourgogne », 1 de 10 places « champagne », et ses 139 bouteilles — est fournie avec l'application : écran d'accueil ou *Fichier → Charger la cave de référence* ([`public/cave-reference.csv`](public/cave-reference.csv)). C'est aussi la disposition proposée par défaut pour une cave vide.
 - L'ancien format (`enregistrement;clayette;rang;emplacements;type;chateau;…;annee;…`) reste lu, ainsi que le même tableau enregistré en **classeur Excel `.xlsx`** (*Fichier → Ouvrir un fichier*) ; l'application, elle, écrit toujours du CSV.
 - La lecture est tolérante : séparateur `,` ou tabulation, en-têtes avec accents ou synonymes, colonnes dans le désordre, encodage Windows-1252 d'Excel, fichier sans lignes `clayette` (la configuration est alors déduite). Les lignes corrigées ou ignorées sont listées après l'import.
 - Un modèle (cave fictive, avec des places libres) est téléchargeable dans *Fichier → Modèle de fichier CSV* ([`public/exemple-cave.csv`](public/exemple-cave.csv)).

@@ -8,7 +8,7 @@ import type { Cellar } from './types';
  *
  * Le texte est au format du fichier de l'application (voir `csv.ts`) : clayettes, puis
  * bouteilles dans l'ordre de lecture, identifiants d'origine conservés.
- * `public/cave-bacchus.csv` en est la copie exacte, précédée d'un BOM UTF-8 pour Excel.
+ * `public/cave-reference.csv` en est la copie exacte, précédée d'un BOM UTF-8 pour Excel.
  */
 const LIGNES = `
 type;id;capacite;type_clayette;nom;appellation;millesime;cepages;robe;forme;clayette;place;collection

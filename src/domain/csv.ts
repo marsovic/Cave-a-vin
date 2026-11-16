@@ -12,7 +12,7 @@ import {
 } from './types';
 
 /**
- * Format du fichier CSV de Bacchus SmartCellar (texte UTF-8, séparateur « ; »,
+ * Format du fichier CSV de DumbCellar (texte UTF-8, séparateur « ; »,
  * compatible Excel français). Une seule table, une ligne d'en-tête, puis :
  *  - une ligne `clayette` par clayette (configuration de la cave) ;
  *  - une ligne `bouteille` par bouteille.
@@ -49,7 +49,7 @@ export const CSV_COLUMNS = [
 
 export const CSV_SEPARATOR = ';';
 export const CSV_MIME = 'text/csv';
-export const CSV_DEFAULT_FILENAME = 'bacchus-smartcellar.csv';
+export const CSV_DEFAULT_FILENAME = 'dumbcellar.csv';
 
 /** Colonnes telles que l'analyseur les manipule (indépendantes des noms d'en-tête du fichier). */
 const COLUMNS = [

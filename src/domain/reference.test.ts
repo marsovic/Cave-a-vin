@@ -8,7 +8,7 @@ import { findWineAppellation } from './knowledge';
 import { applyReorgStep, planReorganization, sameCellarContent, type ReorgState } from './reorg';
 import { REFERENCE_CSV, referenceCellar } from './reference';
 
-const PUBLIC_FILE = resolve(dirname(fileURLToPath(import.meta.url)), '../../public/cave-bacchus.csv');
+const PUBLIC_FILE = resolve(dirname(fileURLToPath(import.meta.url)), '../../public/cave-reference.csv');
 
 describe('cave de référence (armoire modélisée)', () => {
   const cellar = referenceCellar();
@@ -54,7 +54,7 @@ describe('cave de référence (armoire modélisée)', () => {
     }
   });
 
-  it('public/cave-bacchus.csv en est la copie exacte, précédée d’un BOM', () => {
+  it('public/cave-reference.csv en est la copie exacte, précédée d’un BOM', () => {
     const text = readFileSync(PUBLIC_FILE).toString('utf8');
     expect(text.charCodeAt(0)).toBe(0xfeff);
     expect(text.slice(1)).toBe(REFERENCE_CSV);

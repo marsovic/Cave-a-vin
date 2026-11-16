@@ -121,7 +121,7 @@ export function AppHeader(): ReactNode {
     <header className="app-header">
       <div className="brand">
         <BrandIcon size={26} />
-        <h1 className="brand-title">Bacchus SmartCellar</h1>
+        <h1 className="brand-title">DumbCellar</h1>
       </div>
 
       <div className="header-tools">

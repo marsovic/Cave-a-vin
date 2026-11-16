@@ -72,9 +72,9 @@ describe('GET /api/ai', () => {
     const env = { ...ENV, APP_ACCESS_CODE: 'sésame' };
     const sans = await handleAiRequest(new Request(URL_API), env);
     expect(await sans.json()).toMatchObject({ configured: true, codeRequired: true, codeOk: false });
-    const faux = await handleAiRequest(new Request(URL_API, { headers: { 'x-bacchus-code': 'autre' } }), env);
+    const faux = await handleAiRequest(new Request(URL_API, { headers: { 'x-dumbcellar-code': 'autre' } }), env);
     expect(await faux.json()).toMatchObject({ codeRequired: true, codeOk: false });
-    const bon = await handleAiRequest(new Request(URL_API, { headers: { 'x-bacchus-code': 'sésame' } }), env);
+    const bon = await handleAiRequest(new Request(URL_API, { headers: { 'x-dumbcellar-code': 'sésame' } }), env);
     expect(await bon.json()).toMatchObject({ codeRequired: true, codeOk: true });
   });
 
@@ -126,7 +126,7 @@ describe('POST /api/ai — contrôles', () => {
     const fetchMock = fetchReturning();
     for (const code of ['sesam', 'sesame2', 'SESAME', 'x']) {
       const response = await handleAiRequest(
-        post(BODY, { 'x-bacchus-code': code }),
+        post(BODY, { 'x-dumbcellar-code': code }),
         { ...ENV, APP_ACCESS_CODE: 'sesame' },
         fetchMock,
       );
@@ -141,7 +141,7 @@ describe('POST /api/ai — contrôles', () => {
   it('accepte le bon code d\'accès', async () => {
     const fetchMock = fetchReturning(groqReply('Bonjour !'));
     const response = await handleAiRequest(
-      post(BODY, { 'x-bacchus-code': 'sesame' }),
+      post(BODY, { 'x-dumbcellar-code': 'sesame' }),
       { ...ENV, APP_ACCESS_CODE: 'sesame' },
       fetchMock,
     );
@@ -167,7 +167,7 @@ describe('POST /api/ai — contrôles', () => {
 
   it('403 pour une origine étrangère même avec le bon code d\'accès', async () => {
     const response = await handleAiRequest(
-      post(BODY, { origin: 'https://pirate.test', 'x-bacchus-code': 'sesame' }),
+      post(BODY, { origin: 'https://pirate.test', 'x-dumbcellar-code': 'sesame' }),
       { ...ENV, APP_ACCESS_CODE: 'sesame' },
       fetchReturning(),
     );
@@ -215,7 +215,7 @@ describe('POST /api/ai — contrôles', () => {
     const env = { ...ENV, APP_ACCESS_CODE: 'code-tres-secret' };
     expect((await handleAiRequest(sansOrigine(), env, fetchMock)).status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect((await handleAiRequest(sansOrigine({ 'x-bacchus-code': 'code-tres-secret' }), env, fetchMock)).status).toBe(200);
+    expect((await handleAiRequest(sansOrigine({ 'x-dumbcellar-code': 'code-tres-secret' }), env, fetchMock)).status).toBe(200);
   });
 
   it('limite le débit par adresse : requêtes IA et codes d\'accès erronés', async () => {
@@ -229,7 +229,7 @@ describe('POST /api/ai — contrôles', () => {
 
     resetRateLimits();
     const env = { ...ENV, APP_ACCESS_CODE: 'code-tres-secret' };
-    const essai = (code: string): Promise<Response> => handleAiRequest(post(BODY, { ...ip, 'x-bacchus-code': code }), env, fetchMock);
+    const essai = (code: string): Promise<Response> => handleAiRequest(post(BODY, { ...ip, 'x-dumbcellar-code': code }), env, fetchMock);
     for (let i = 0; i < 8; i++) expect((await essai(`faux-${i}`)).status).toBe(401);
     // Limite atteinte : même le bon code est refusé pendant la fenêtre.
     expect((await essai('faux-9')).status).toBe(401);

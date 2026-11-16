@@ -277,7 +277,7 @@ const cellarArb: fc.Arbitrary<Cellar> = fc
 /* Écriture                                                            */
 /* ------------------------------------------------------------------ */
 
-describe('format « Bacchus SmartCellar » (fichier d’origine)', () => {
+describe('format « DumbCellar » (fichier d’origine)', () => {
   const ORIGINE =
     'type;id;capacite;type_clayette;nom;appellation;millesime;cepages;robe;forme;clayette;place;collection\r\n' +
     'clayette;;13;bordeaux;;;;;;;1;;\r\n' +

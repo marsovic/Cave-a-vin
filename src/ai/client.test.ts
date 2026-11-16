@@ -96,10 +96,10 @@ describe('aiComplete — mode serveur', () => {
     });
   });
 
-  it('joint le code d\'accès en en-tête x-bacchus-code', async () => {
+  it('joint le code d\'accès en en-tête x-dumbcellar-code', async () => {
     fetchMock.mockResolvedValueOnce(serverOk());
     await aiComplete(REQUEST, { ...SERVEUR, codeAcces: '  sesame  ' });
-    expect(headersOf(0)['x-bacchus-code']).toBe('sesame');
+    expect(headersOf(0)['x-dumbcellar-code']).toBe('sesame');
     expect(headersOf(0)).not.toHaveProperty('Authorization');
   });
 
@@ -137,7 +137,7 @@ describe('aiComplete — mode serveur', () => {
     for (const status of [200, 404, 405]) {
       fetchMock.mockReset();
       fetchMock.mockResolvedValueOnce(
-        new Response('<!doctype html><html><body>Bacchus</body></html>', { status, headers: { 'content-type': 'text/html' } }),
+        new Response('<!doctype html><html><body>DumbCellar</body></html>', { status, headers: { 'content-type': 'text/html' } }),
       );
       const error = await failure(aiComplete(REQUEST, SERVEUR));
       expect(error.code).toBe('indisponible');
@@ -192,7 +192,7 @@ describe('aiComplete — clé personnelle', () => {
       expect(url).toBe(GROQ_URL);
       const sent = `${JSON.stringify(init.headers)} ${init.body as string}`;
       expect(sent).not.toContain('sesame');
-      expect(sent.toLowerCase()).not.toContain('x-bacchus-code');
+      expect(sent.toLowerCase()).not.toContain('x-dumbcellar-code');
     }
   });
 
@@ -534,7 +534,7 @@ describe('getAiStatus', () => {
   it('code d\'accès exigé et faux', async () => {
     fetchMock.mockResolvedValueOnce(configured({ codeRequired: true, codeOk: false }));
     const status = await getAiStatus({ ...SERVEUR, codeAcces: 'mauvais' });
-    expect(headersOf(0)['x-bacchus-code']).toBe('mauvais');
+    expect(headersOf(0)['x-dumbcellar-code']).toBe('mauvais');
     expect(status).toMatchObject({ disponible: false, mode: 'serveur', codeRequis: true });
     expect(status.message).toContain('Code d\'accès refusé');
   });

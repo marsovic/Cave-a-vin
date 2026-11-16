@@ -1,8 +1,8 @@
 {
-  "name": "bacchus-smartcellar",
+  "name": "dumbcellar",
   "private": true,
   "version": "1.0.0",
-  "description": "Bacchus SmartCellar — gestion d'une cave à vin (armoire réfrigérée) : schéma des clayettes, recherche, réorganisation guidée, sommelier IA.",
+  "description": "DumbCellar — gestion d'une cave à vin (armoire réfrigérée) : schéma des clayettes, recherche, réorganisation guidée, sommelier IA.",
   "type": "module",
   "scripts": {
     "dev": "vite",

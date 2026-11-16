@@ -6,7 +6,7 @@ import type { AiErrorCode, AiRequest, AiResponse, AiSettings, AiStatus } from '.
 /** Adresse de la fonction serveur (même origine que l'application). */
 export const AI_ENDPOINT = '/api/ai';
 /** En-tête portant le code d'accès du déploiement (jamais envoyé à Groq). */
-export const ACCESS_CODE_HEADER = 'x-bacchus-code';
+export const ACCESS_CODE_HEADER = 'x-dumbcellar-code';
 
 /** Délai maximal d'une tentative. */
 const REQUEST_TIMEOUT_MS = 60_000;

@@ -18,7 +18,7 @@ export function WelcomeDialog(): ReactNode {
   };
 
   return (
-    <Modal title="Bienvenue dans Bacchus SmartCellar" onClose={() => done()} size="moyen">
+    <Modal title="Bienvenue dans DumbCellar" onClose={() => done()} size="moyen">
       <div className="welcome">
         <BrandIcon size={56} />
         <p>
@@ -38,7 +38,7 @@ export function WelcomeDialog(): ReactNode {
         >
           <Icon name="bottle" size={26} />
           <span>
-            <strong>Charger la cave Bacchus</strong>
+            <strong>Charger la cave de référence</strong>
             <span>L'armoire modélisée : 11 clayettes et ses 139 bouteilles.</span>
           </span>
         </button>

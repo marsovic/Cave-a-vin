@@ -101,7 +101,7 @@ export function devApi(): Plugin {
   };
 
   return {
-    name: 'bacchus-dev-api',
+    name: 'dumbcellar-dev-api',
     configResolved(config) {
       // Préfixe vide : toutes les variables des fichiers .env, pas seulement celles en VITE_.
       // Les variables déjà présentes dans l'environnement du processus restent prioritaires.

@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Bacchus SmartCellar",
-  "short_name": "Bacchus",
+  "name": "DumbCellar",
+  "short_name": "DumbCellar",
   "description": "Gérez votre cave à vin : schéma des clayettes, recherche, réorganisation guidée et conseils du sommelier.",
   "lang": "fr",
   "dir": "ltr",

@@ -3,21 +3,34 @@
  * elles n'échouent jamais (stockage indisponible, quota dépassé, JSON corrompu → valeur par défaut / `false`).
  */
 
-/** Clés utilisées (préfixe `bacchus.`). */
+/** Clés utilisées (préfixe `dumbcellar.`). */
 export const STORAGE_KEYS = {
   /** Copie de travail de la cave, au format CSV. */
-  csv: 'bacchus.cave.csv',
+  csv: 'dumbcellar.cave.csv',
   /** Métadonnées de la copie de travail (JSON). */
-  meta: 'bacchus.cave.meta',
+  meta: 'dumbcellar.cave.meta',
   /** Réglages IA (JSON `AiSettings`). */
-  ai: 'bacchus.ai.settings',
+  ai: 'dumbcellar.ai.settings',
   /** Cache des fenêtres de dégustation obtenues par l'IA (JSON). */
-  aiCache: 'bacchus.ai.cache',
+  aiCache: 'dumbcellar.ai.cache',
   /** Préférences d'interface (JSON). */
-  prefs: 'bacchus.prefs',
+  prefs: 'dumbcellar.prefs',
   /** Session de réorganisation guidée en cours (JSON). */
-  reorg: 'bacchus.reorg.session',
+  reorg: 'dumbcellar.reorg.session',
 } as const;
+
+/** Préfixe commun des clés ci-dessus. */
+const PREFIX = 'dumbcellar.';
+/**
+ * Préfixe des clés du temps où l'application s'appelait autrement. Les données enregistrées
+ * sous ces clés sont reprises à la première lecture, puis déplacées sous le nouveau préfixe.
+ */
+export const LEGACY_PREFIX = 'bacchus.';
+
+/** Ancienne clé correspondant à `key`, ou `null` si `key` n'est pas une clé de l'application. */
+function legacyKey(key: string): string | null {
+  return key.startsWith(PREFIX) ? LEGACY_PREFIX + key.slice(PREFIX.length) : null;
+}
 
 function storage(): Storage | null {
   try {
@@ -30,7 +43,21 @@ function storage(): Storage | null {
 
 export function loadText(key: string): string | null {
   try {
-    return storage()?.getItem(key) ?? null;
+    const s = storage();
+    if (!s) return null;
+    const value = s.getItem(key);
+    if (value !== null) return value;
+    // Rien sous le nom actuel : données enregistrées sous l'ancien nom de l'application ?
+    const old = legacyKey(key);
+    const legacy = old === null ? null : s.getItem(old);
+    if (old === null || legacy === null) return null;
+    try {
+      s.setItem(key, legacy);
+      s.removeItem(old);
+    } catch {
+      /* quota dépassé : l'ancienne clé reste en place et sera relue la prochaine fois */
+    }
+    return legacy;
   } catch {
     return null;
   }
@@ -42,6 +69,9 @@ export function saveText(key: string, value: string): boolean {
     const s = storage();
     if (!s) return false;
     s.setItem(key, value);
+    // La valeur enregistrée sous l'ancien nom de l'application est désormais périmée.
+    const old = legacyKey(key);
+    if (old !== null) s.removeItem(old);
     return true;
   } catch {
     return false;
@@ -50,7 +80,11 @@ export function saveText(key: string, value: string): boolean {
 
 export function removeKey(key: string): void {
   try {
-    storage()?.removeItem(key);
+    const s = storage();
+    s?.removeItem(key);
+    // Sans quoi l'ancienne valeur reviendrait à la prochaine lecture.
+    const old = legacyKey(key);
+    if (old !== null) s?.removeItem(old);
   } catch {
     /* rien à faire */
   }

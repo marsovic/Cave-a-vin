@@ -109,25 +109,25 @@ const Slot = memo(function Slot({ v, shelf, draggable, showYear, focusable, onTa
       onClick={() => onTap(v.slot)}
       onDragStart={(e) => {
         if (!b) return;
-        e.dataTransfer.setData('application/x-bacchus-bottle', b.id);
+        e.dataTransfer.setData('application/x-dumbcellar-bottle', b.id);
         e.dataTransfer.setData('text/plain', formatWine(b));
         e.dataTransfer.effectAllowed = 'move';
       }}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('application/x-bacchus-bottle')) {
+        if (e.dataTransfer.types.includes('application/x-dumbcellar-bottle')) {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'move';
         }
       }}
       onDragEnter={(e) => {
-        if (e.dataTransfer.types.includes('application/x-bacchus-bottle')) e.currentTarget.dataset.over = '';
+        if (e.dataTransfer.types.includes('application/x-dumbcellar-bottle')) e.currentTarget.dataset.over = '';
       }}
       onDragLeave={(e) => {
         delete e.currentTarget.dataset.over;
       }}
       onDrop={(e) => {
         delete e.currentTarget.dataset.over;
-        const id = e.dataTransfer.getData('application/x-bacchus-bottle');
+        const id = e.dataTransfer.getData('application/x-dumbcellar-bottle');
         if (!id) return;
         e.preventDefault();
         dropBottle(id, v.slot);

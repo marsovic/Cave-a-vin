@@ -485,8 +485,8 @@ export async function exportShare(): Promise<boolean> {
   const { cellar } = useStore.getState();
   const name = datedFilename();
   const result = await shareCsv(serializeCellar(cellar), name, {
-    title: 'Ma cave — Bacchus SmartCellar',
-    text: `Cave Bacchus SmartCellar : ${cellar.bottles.length} bouteille(s).`,
+    title: 'Ma cave — DumbCellar',
+    text: `Cave DumbCellar : ${cellar.bottles.length} bouteille(s).`,
   });
   if (result === 'shared') {
     markExported(name);
@@ -513,8 +513,8 @@ export async function exportMail(): Promise<void> {
   const csv = serializeCellar(cellar);
   const name = datedFilename();
   const mail = buildMailto(csv, {
-    subject: `Ma cave Bacchus SmartCellar (${cellar.bottles.length} bouteilles)`,
-    intro: 'Bonjour,\r\n\r\nVoici ma cave exportée depuis Bacchus SmartCellar.',
+    subject: `Ma cave DumbCellar (${cellar.bottles.length} bouteilles)`,
+    intro: 'Bonjour,\r\n\r\nVoici ma cave exportée depuis DumbCellar.',
   });
   if (!mail.inline) downloadCsv(csv, name);
   markExported(name);
@@ -560,8 +560,8 @@ export function loadDemo(): void {
 export function loadReference(): void {
   loadBuiltIn(
     referenceCellar,
-    'la cave Bacchus (139 bouteilles)',
-    'Cave Bacchus chargée : 11 clayettes, 139 bouteilles.',
+    'la cave de référence (139 bouteilles)',
+    'Cave de référence chargée : 11 clayettes, 139 bouteilles.',
   );
 }
 

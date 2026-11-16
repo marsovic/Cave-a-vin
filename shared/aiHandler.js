@@ -14,7 +14,7 @@ export const MAX_BODY_BYTES = 4 * 1024 * 1024;
 /** Délai accordé à Groq (la fonction Vercel est limitée à 60 s). */
 export const UPSTREAM_TIMEOUT_MS = 55_000;
 /** En-tête portant le code d'accès du déploiement. */
-export const ACCESS_CODE_HEADER = 'x-bacchus-code';
+export const ACCESS_CODE_HEADER = 'x-dumbcellar-code';
 
 function jsonResponse(status, payload, extraHeaders) {
   return new Response(JSON.stringify(payload), {

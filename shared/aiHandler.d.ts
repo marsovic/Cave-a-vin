@@ -25,7 +25,7 @@ export interface AiServerStatus {
   configured: boolean;
   /** La variable APP_ACCESS_CODE est renseignée. */
   codeRequired: boolean;
-  /** Aucun code exigé, ou en-tête `x-bacchus-code` correct. */
+  /** Aucun code exigé, ou en-tête `x-dumbcellar-code` correct. */
   codeOk: boolean;
   models: AiModels;
 }
@@ -37,7 +37,7 @@ export interface AiServerError {
 
 export declare const MAX_BODY_BYTES: number;
 export declare const UPSTREAM_TIMEOUT_MS: number;
-export declare const ACCESS_CODE_HEADER: 'x-bacchus-code';
+export declare const ACCESS_CODE_HEADER: 'x-dumbcellar-code';
 
 /** Comparaison de chaînes en temps constant. */
 export declare function timingSafeEqualStrings(a: string, b: string): boolean;

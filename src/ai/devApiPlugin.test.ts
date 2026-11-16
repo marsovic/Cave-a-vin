@@ -44,12 +44,12 @@ beforeAll(async () => {
     saved.set(name, process.env[name]);
     delete process.env[name];
   }
-  envDir = mkdtempSync(join(tmpdir(), 'bacchus-dev-api-'));
+  envDir = mkdtempSync(join(tmpdir(), 'dumbcellar-dev-api-'));
   writeFileSync(join(envDir, '.env'), 'GROQ_API_KEY=gsk_cle_du_fichier_env\nGROQ_MODEL_TEXT=modele/du-fichier\n');
   writeFileSync(join(envDir, '.env.local'), 'APP_ACCESS_CODE=sesame\n');
 
   const plugin = devApi();
-  expect(plugin.name).toBe('bacchus-dev-api');
+  expect(plugin.name).toBe('dumbcellar-dev-api');
   (plugin.configResolved as unknown as (config: unknown) => void)({ mode: 'development', envDir, root: envDir });
   const fakeServer = { middlewares: { use: (middleware: Middleware) => registered.push(middleware) } };
   (plugin.configureServer as unknown as (server: unknown) => void)(fakeServer);
@@ -121,7 +121,7 @@ describe('plugin Vite devApi', () => {
         'content-type': 'application/json',
         'content-length': String(Buffer.byteLength(body)),
         origin: `http://127.0.0.1:${port}`,
-        'x-bacchus-code': 'sesame',
+        'x-dumbcellar-code': 'sesame',
       },
       body,
     );
@@ -152,7 +152,7 @@ describe('plugin Vite devApi', () => {
     const reply = await call(
       'POST',
       '/api/ai',
-      { 'content-type': 'application/json', origin: 'https://pirate.test', 'x-bacchus-code': 'sesame' },
+      { 'content-type': 'application/json', origin: 'https://pirate.test', 'x-dumbcellar-code': 'sesame' },
       '{}',
     );
     expect(reply.status).toBe(403);
@@ -165,7 +165,7 @@ describe('plugin Vite devApi', () => {
     const reply = await call(
       'POST',
       '/api/ai',
-      { 'content-type': 'application/json', 'x-bacchus-code': 'sesame', 'transfer-encoding': 'chunked' },
+      { 'content-type': 'application/json', 'x-dumbcellar-code': 'sesame', 'transfer-encoding': 'chunked' },
       'x'.repeat(4 * 1024 * 1024 + 10),
     );
     expect(reply.status).toBe(413);

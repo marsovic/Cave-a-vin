@@ -13,7 +13,7 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: false,
       manifest: false,
-      includeAssets: ['icons/*.png', 'icons/*.svg', 'apple-touch-icon.png', 'exemple-cave.csv', 'cave-bacchus.csv'],
+      includeAssets: ['icons/*.png', 'icons/*.svg', 'apple-touch-icon.png', 'exemple-cave.csv', 'cave-reference.csv'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
         navigateFallback: '/index.html',

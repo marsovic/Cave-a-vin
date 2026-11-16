@@ -1,5 +1,5 @@
 /**
- * Modèle de données de Bacchus SmartCellar.
+ * Modèle de données de DumbCellar.
  *
  * Conventions :
  *  - les numéros de clayette et de rang sont en base 1 (clayette 1 = tout en haut,
