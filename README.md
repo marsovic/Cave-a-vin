@@ -38,7 +38,7 @@ Toucher le schéma n'efface jamais vos critères : cela écrit seulement la clay
 Dans le navigateur de votre appareil, et dans le fichier CSV que vous liez ou exportez. **Rien n'est enregistré sur un serveur.**
 
 - **PC (Chrome ou Edge)** : menu *Fichier → Ouvrir un CSV et le lier* (ou *Enregistrer sous… et lier*). Choisissez un fichier dans votre dossier OneDrive : chaque modification y est écrite, et le fichier est relu s'il change sur un autre appareil. Le navigateur redemande l'accès à chaque session (« Reconnecter »).
-- **iPhone** : Safari ne permet pas d'écrire directement dans un fichier. *Fichier → Partager / enregistrer…* dépose la cave dans Fichiers ou OneDrive ; *Ouvrir un fichier CSV…* la reprend. Installez l'application sur l'écran d'accueil (bouton Partager de Safari → « Sur l'écran d'accueil ») : ses données ne sont alors pas effacées par Safari après quelques jours sans visite. Attention : l'application installée et l'onglet Safari n'ont pas le même stockage.
+- **iPhone** : Safari ne permet pas d'écrire directement dans un fichier. *Fichier → Partager / enregistrer…* dépose la cave dans Fichiers ou OneDrive ; *Ouvrir un fichier (CSV ou Excel)…* la reprend. Installez l'application sur l'écran d'accueil (bouton Partager de Safari → « Sur l'écran d'accueil ») : ses données ne sont alors pas effacées par Safari après quelques jours sans visite. Attention : l'application installée et l'onglet Safari n'ont pas le même stockage.
 - **Courriel** : sur téléphone, la feuille de partage joint le fichier ; sur ordinateur, le fichier est téléchargé et un brouillon s'ouvre. Pour importer une cave reçue par courriel : *Fichier → Coller un CSV*.
 
 ### Format du fichier CSV
@@ -68,7 +68,7 @@ bouteille;8c1f02aa-0d6e-4c1b-9d57-0c5a3a6f2b11;;;Dom Pérignon;Champagne;;Chardo
 
 - Une bouteille ne peut aller que sur une clayette de sa forme ou sur une clayette `tout`.
 - **La cave modélisée** — l'armoire réelle : 9 clayettes de 13 places « bordeaux », 1 de 12 places « bourgogne », 1 de 10 places « champagne », et ses 139 bouteilles — est fournie avec l'application : écran d'accueil ou *Fichier → Charger la cave Bacchus* ([`public/cave-bacchus.csv`](public/cave-bacchus.csv)). C'est aussi la disposition proposée par défaut pour une cave vide.
-- L'ancien format (`enregistrement;clayette;rang;emplacements;type;chateau;…;annee;…`) reste lu.
+- L'ancien format (`enregistrement;clayette;rang;emplacements;type;chateau;…;annee;…`) reste lu, ainsi que le même tableau enregistré en **classeur Excel `.xlsx`** (*Fichier → Ouvrir un fichier*) ; l'application, elle, écrit toujours du CSV.
 - La lecture est tolérante : séparateur `,` ou tabulation, en-têtes avec accents ou synonymes, colonnes dans le désordre, encodage Windows-1252 d'Excel, fichier sans lignes `clayette` (la configuration est alors déduite). Les lignes corrigées ou ignorées sont listées après l'import.
 - Un modèle (cave fictive, avec des places libres) est téléchargeable dans *Fichier → Modèle de fichier CSV* ([`public/exemple-cave.csv`](public/exemple-cave.csv)).
 

@@ -478,6 +478,16 @@ async function reference(browser) {
   check('cave Bacchus : identifiants inchangés après réorganisation',
     new Set(sorted.bottles.map((b) => b.id)).size === 139 && cave.bottles.every((b) => sorted.bottles.some((x) => x.id === b.id)));
   await shot(page, 'bacchus-04-reorg-fini');
+
+  // Import direct du classeur Excel d'origine (.xlsx).
+  await page.getByRole('button', { name: /^Fichier/ }).click();
+  await page.getByRole('dialog').locator('input[type="file"]').setInputFiles(new URL('../src/storage/fixtures/bacchus-smartcellar-2026-11-14.xlsx', import.meta.url).pathname);
+  await page.getByRole('dialog').getByRole('button', { name: 'Remplacer' }).click();
+  await page.waitForTimeout(300);
+  const fromXlsx = await readCellar(page);
+  check('cave Bacchus : import du classeur .xlsx d\'origine',
+    fromXlsx.bottles.length === 139 && fromXlsx.shelves.length === 11 && cave.bottles.every((b) => fromXlsx.bottles.some((x) => x.id === b.id && x.clayette === b.clayette && x.rang === b.rang)),
+    `${fromXlsx.bottles.length} bouteilles`);
   await context.close();
 }
 

@@ -1,3 +1,4 @@
+import { isXlsx, xlsxToCsv } from './xlsx';
 import { cellarHeaderSeparator } from '../domain/csv';
 
 /**
@@ -27,7 +28,7 @@ export function decodeText(bytes: ArrayBuffer | Uint8Array): string {
   }
 }
 
-/** Lit un fichier choisi par l'utilisateur comme texte (voir `decodeText`). */
+/** Lit un fichier choisi par l'utilisateur comme texte CSV (voir `decodeText`) ; les classeurs .xlsx sont convertis. */
 export async function readTextFile(file: Blob): Promise<string> {
   let buffer: ArrayBuffer;
   if (typeof file.arrayBuffer === 'function') {
@@ -40,6 +41,9 @@ export async function readTextFile(file: Blob): Promise<string> {
       reader.readAsArrayBuffer(file);
     });
   }
+  // Classeur Excel (.xlsx) : sa feuille est convertie en texte CSV.
+  const bytes = new Uint8Array(buffer);
+  if (isXlsx(bytes)) return xlsxToCsv(bytes);
   return decodeText(buffer);
 }
 

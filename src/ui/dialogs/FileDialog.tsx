@@ -144,7 +144,7 @@ export function FileDialog(): ReactNode {
         <div className="button-row">
           <button type="button" className="btn" onClick={() => inputRef.current?.click()}>
             <Icon name="folder" size={17} />
-            Ouvrir un fichier CSV…
+            Ouvrir un fichier (CSV ou Excel)…
           </button>
           <button type="button" className="btn" onClick={() => setPasteOpen((v) => !v)} aria-expanded={pasteOpen}>
             <Icon name="clipboard" size={17} />
