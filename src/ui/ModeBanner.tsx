@@ -125,6 +125,7 @@ export function ModeBanner(): ReactNode {
   const file = useStore((s) => s.file);
   const confirmPlacement = useStore((s) => s.confirmPlacement);
   const setPlacementCount = useStore((s) => s.setPlacementCount);
+  const saveEdit = useStore((s) => s.saveEdit);
   const cancelMode = useStore((s) => s.cancelMode);
   const startReorg = useStore((s) => s.startReorg);
 
@@ -277,6 +278,36 @@ export function ModeBanner(): ReactNode {
         </div>
         <div className="banner-actions">
           <button type="button" className="btn btn-small" onClick={cancelMode} autoFocus>
+            Annuler
+          </button>
+        </div>
+      </div>,
+    );
+  } else if (mode.kind === 'correction') {
+    const bottle = bottleById(cellar, mode.bottleId);
+    banners.push(
+      <div className="banner banner-mode" role="region" aria-label="Correction en cours" key="correction">
+        <div className="banner-main">
+          <p className="banner-text" aria-live="polite">
+            <Icon name="pencil" size={16} /> Correction de <BottleName bottle={bottle} />
+            {bottle ? (
+              <>
+                {' '}
+                <span className="pill pill-source">{formatSlotShort(bottle)}</span>
+              </>
+            ) : null}
+          </p>
+          <p className="banner-note">
+            Le formulaire contient la description de cette bouteille : modifiez-la, puis enregistrez. Pour changer
+            son emplacement, utilisez « Déplacer ».
+          </p>
+        </div>
+        <div className="banner-actions">
+          <button type="button" className="btn btn-primary" onClick={saveEdit}>
+            <Icon name="check" size={17} />
+            Enregistrer
+          </button>
+          <button type="button" className="btn btn-small" onClick={cancelMode}>
             Annuler
           </button>
         </div>

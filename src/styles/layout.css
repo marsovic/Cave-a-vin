@@ -192,7 +192,7 @@
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: 348px minmax(0, 1fr) 340px;
+  grid-template-columns: 372px minmax(0, 1fr) 340px;
   grid-template-rows: minmax(0, 1fr);
   grid-template-areas: 'form cave panel';
   gap: var(--gap-3);
@@ -232,7 +232,7 @@
 /* Écrans intermédiaires : le panneau passe sous le schéma. */
 @media (max-width: 1199px) {
   .app-main {
-    grid-template-columns: 330px minmax(0, 1fr);
+    grid-template-columns: 352px minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) minmax(170px, 36%);
     grid-template-areas:
       'form cave'
@@ -562,6 +562,11 @@
     padding-bottom: calc(6px + env(safe-area-inset-bottom));
   }
 
+  /* Guidage : la consigne suffit ; la liste des étapes laisserait trop peu de place au schéma. */
+  .app[data-mode='reorg'] .zone-panel {
+    display: none;
+  }
+
   .banner {
     padding: 8px 10px;
   }
@@ -588,6 +593,12 @@
 
   .toasts {
     bottom: auto;
-    top: calc(48px + env(safe-area-inset-top));
+    top: calc(44px + env(safe-area-inset-top));
+    gap: 4px;
+  }
+
+  .toast {
+    padding: 5px 5px 5px 10px;
+    gap: 7px;
   }
 }

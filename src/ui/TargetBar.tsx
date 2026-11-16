@@ -1,26 +1,26 @@
 import { useMemo, type ReactNode } from 'react';
 import { cellarStats } from '../domain/cellar';
-import { ROBE_LABELS, TYPE_CLAYETTE_LABELS, formatSlotShort, formatWine } from '../domain/labels';
+import { FORME_LABELS, ROBE_LABELS, TYPE_CLAYETTE_LABELS, formatSlotShort, formatWine } from '../domain/labels';
 import { computeTarget, freeSlotsForForm, hasAnyCriteria } from '../state/selectors';
 import { useStore } from '../state/store';
 import { Icon } from './icons';
 
+function plural(n: number, one: string, many: string): string {
+  return n > 1 ? many : one;
+}
+
 /**
  * Barre de cible : dit en clair sur quoi porteront les actions du formulaire
- * (une bouteille précise, les bouteilles correspondant aux critères, un emplacement libre…).
+ * (une bouteille désignée, les bouteilles correspondant aux critères, un emplacement libre…).
  */
 export function TargetBar(): ReactNode {
   const cellar = useStore((s) => s.cellar);
   const form = useStore((s) => s.form);
   const view = useStore((s) => s.view);
   const mode = useStore((s) => s.mode);
-  const lastSearch = useStore((s) => s.lastSearch);
   const panelOpen = useStore((s) => s.panelOpen);
   const deselect = useStore((s) => s.deselect);
-  const saveEdit = useStore((s) => s.saveEdit);
-  const revertEdit = useStore((s) => s.revertEdit);
   const setPanelOpen = useStore((s) => s.setPanelOpen);
-  const setField = useStore((s) => s.setField);
   const clearForm = useStore((s) => s.clearForm);
 
   const target = useMemo(() => computeTarget(cellar, form), [cellar, form]);
@@ -38,12 +38,33 @@ export function TargetBar(): ReactNode {
       onClick={() => setPanelOpen(!panelOpen)}
       aria-expanded={panelOpen}
     >
-      {panelOpen ? 'Masquer la liste' : 'Voir la liste'}
+      {panelOpen ? 'Masquer' : 'Détails'}
       <Icon name={panelOpen ? 'chevronDown' : 'chevronUp'} size={14} />
     </button>
   );
 
-  if (target.erreur) {
+  const deselectButton = (
+    <button
+      type="button"
+      className="btn btn-small btn-icon btn-ghost"
+      onClick={deselect}
+      disabled={locked}
+      aria-label="Ne plus désigner cet emplacement"
+      title="Ne plus désigner cet emplacement (Échap)"
+    >
+      <Icon name="x" size={16} />
+    </button>
+  );
+
+  if (mode.kind === 'correction') {
+    tone = 'modif';
+    text = (
+      <>
+        <strong>Correction</strong> de la bouteille <strong>{form.clayette && form.rang ? `C${form.clayette}·R${form.rang}` : ''}</strong> :
+        modifiez les champs puis enregistrez.
+      </>
+    );
+  } else if (target.erreur) {
     tone = 'erreur';
     text = target.erreur;
   } else if (view === 'libres' && !locked) {
@@ -51,58 +72,32 @@ export function TargetBar(): ReactNode {
     tone = 'cible';
     text = (
       <>
-        <strong>{free.length}</strong> place{free.length > 1 ? 's' : ''} libre{free.length > 1 ? 's' : ''}
-        {form.forme ? ` pour une bouteille ${form.forme === 'autre' ? 'de forme « Autre »' : `de type ${form.forme}`}` : ''}
-        {form.clayette ? ` sur la clayette ${form.clayette}` : ''}
+        <strong>{free.length}</strong> {plural(free.length, 'place libre', 'places libres')}
+        {form.forme ? ` pour une bouteille ${FORME_LABELS[form.forme]}` : ''}
+        {form.clayette && !form.rang ? ` sur la clayette ${form.clayette}` : ''}
       </>
     );
     actions = listToggle;
   } else if (target.kind === 'bouteille') {
     const b = target.bottles[0]!;
-    tone = target.modifie ? 'modif' : 'cible';
+    tone = 'cible';
     text = (
       <>
+        <strong>{formatSlotShort(b)}</strong> —{' '}
         <span className="robe-dot" data-robe={b.robe} title={ROBE_LABELS[b.robe]} />
         <strong>{formatWine(b)}</strong>
-        <span className="muted"> · {formatSlotShort(b)}</span>
         {b.collection ? <span className="badge badge-gold">★ collection</span> : null}
-        {target.modifie ? <span className="badge badge-warn">modifications non enregistrées</span> : null}
+        {target.horsCriteres ? (
+          <span className="badge badge-warn" title="Cette bouteille ne correspond pas aux critères saisis">
+            hors critères
+          </span>
+        ) : null}
       </>
     );
-    actions = target.modifie ? (
+    actions = (
       <>
-        <button type="button" className="btn btn-small btn-primary" onClick={saveEdit} disabled={locked}>
-          <Icon name="check" size={15} />
-          Enregistrer
-        </button>
-        <button type="button" className="btn btn-small" onClick={revertEdit} disabled={locked}>
-          Rétablir
-        </button>
-      </>
-    ) : (
-      <>
-        <button
-          type="button"
-          className="btn btn-small btn-ghost"
-          onClick={() => {
-            setField('clayette', '');
-            setField('rang', '');
-          }}
-          disabled={locked}
-          title="Retirer la position pour cibler toutes les bouteilles identiques"
-        >
-          Toutes les identiques
-        </button>
-        <button
-          type="button"
-          className="btn btn-small btn-icon btn-ghost"
-          onClick={deselect}
-          disabled={locked}
-          aria-label={lastSearch ? 'Revenir à la recherche précédente' : 'Désélectionner la bouteille'}
-          title={lastSearch ? 'Revenir à la recherche précédente' : 'Désélectionner'}
-        >
-          <Icon name={lastSearch ? 'chevronLeft' : 'x'} size={16} />
-        </button>
+        {listToggle}
+        {deselectButton}
       </>
     );
   } else if (target.kind === 'emplacement' && target.slot) {
@@ -110,39 +105,30 @@ export function TargetBar(): ReactNode {
     tone = 'cible';
     text = (
       <>
-        Emplacement libre <strong>{formatSlotShort(target.slot)}</strong>
-        <span className="muted"> · clayette {TYPE_CLAYETTE_LABELS[shelf.type]}</span>
+        <strong>{formatSlotShort(target.slot)}</strong> — place libre
+        <span className="muted"> ({TYPE_CLAYETTE_LABELS[shelf.type]})</span>
       </>
     );
-    actions = (
-      <button
-        type="button"
-        className="btn btn-small btn-icon btn-ghost"
-        onClick={deselect}
-        disabled={locked}
-        aria-label="Désélectionner l'emplacement"
-        title="Désélectionner"
-      >
-        <Icon name="x" size={16} />
-      </button>
-    );
+    actions = deselectButton;
   } else if (target.kind === 'selection') {
     const n = target.bottles.length;
+    const stars = target.bottles.filter((b) => b.collection).length;
     tone = n > 0 ? 'cible' : 'neutre';
     text =
       n === 0 ? (
         <>Aucune bouteille ne correspond à ces critères.</>
       ) : (
         <>
-          <strong>{n}</strong> bouteille{n > 1 ? 's' : ''} correspond{n > 1 ? 'ent' : ''} aux critères
+          <strong>{n}</strong> {plural(n, 'bouteille correspond', 'bouteilles correspondent')}
+          {stars > 0 ? <span className="muted"> · dont {stars} ★</span> : null}
         </>
       );
     actions = n > 0 ? listToggle : null;
   } else {
     text = (
       <span className="muted">
-        {stats.total} bouteille{stats.total > 1 ? 's' : ''} · {stats.libres} place{stats.libres > 1 ? 's' : ''} libre
-        {stats.libres > 1 ? 's' : ''} — saisissez des critères ou touchez une bouteille.
+        {stats.total} {plural(stats.total, 'bouteille', 'bouteilles')} en cave · {stats.libres}{' '}
+        {plural(stats.libres, 'place libre', 'places libres')}
       </span>
     );
   }
@@ -153,7 +139,7 @@ export function TargetBar(): ReactNode {
       <div className="target-text">{text}</div>
       <div className="target-actions">
         {actions}
-        {hasAnyCriteria(form) ? (
+        {hasAnyCriteria(form) && mode.kind !== 'correction' ? (
           <button
             type="button"
             className="btn btn-small btn-icon btn-ghost"

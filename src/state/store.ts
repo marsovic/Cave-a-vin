@@ -16,7 +16,7 @@ import { suggestWineDefaults } from '../domain/knowledge';
 import { formatSlot, formatSlotShort, formatWine } from '../domain/labels';
 import { suggestSlots } from '../domain/placement';
 import { applyReorgStep, planReorganization, revertReorgStep, type ReorgMode } from '../domain/reorg';
-import { criteriaFromBottle, hasAnyCriteria, parsePositiveInt, wineFromCriteria } from '../domain/search';
+import { criteriaFromBottle, parsePositiveInt, wineFromCriteria } from '../domain/search';
 import {
   EMPTY_CRITERIA,
   type Bottle,
@@ -54,8 +54,6 @@ export interface AppState {
   form: Criteria;
   /** Plat saisi pour les accords mets-vin. */
   plat: string;
-  /** Recherche en cours avant qu'une bouteille soit désignée dans le schéma (pour y revenir). */
-  lastSearch: Criteria | null;
 
   mode: Mode;
   view: View;
@@ -82,8 +80,10 @@ export interface AppState {
   patchForm: (patch: Partial<Criteria>) => void;
   setPlat: (plat: string) => void;
   clearForm: () => void;
-  /** Annule la désignation d'un emplacement et revient à la recherche précédente. */
+  /** Retire la désignation d'un emplacement (clayette + rang) ; les critères « vin » sont conservés. */
   deselect: () => void;
+  /** Bascule le critère « clayette n » seul (clic sur l'étiquette d'une clayette). */
+  toggleShelf: (clayette: number) => void;
 
   /* ---------- schéma ---------- */
   tapSlot: (slot: SlotRef) => void;
@@ -98,8 +98,11 @@ export interface AppState {
   /** Change le nombre de bouteilles identiques à ranger (mode placement). */
   setPlacementCount: (count: number) => void;
   removeTarget: () => void;
+  /** Correction : charge la bouteille désignée dans le formulaire pour la modifier. */
+  startEdit: () => void;
   saveEdit: () => void;
-  revertEdit: () => void;
+  /** Reprend la description d'une bouteille comme critères (pour retrouver ses semblables ou en ajouter une). */
+  reuseBottle: (bottleId: string) => void;
   startMove: () => void;
   classify: (collection: boolean) => void;
   classifyBottles: (ids: string[], collection: boolean) => void;
@@ -240,7 +243,6 @@ export const useStore = create<AppState>()((set, get) => {
     future: [],
     form: { ...EMPTY_CRITERIA },
     plat: '',
-    lastSearch: null,
     mode: { kind: 'normal' },
     view: 'recherche',
     advice: null,
@@ -279,18 +281,15 @@ export const useStore = create<AppState>()((set, get) => {
 
     setPlat: (plat) => set({ plat }),
 
-    clearForm: () => set({ form: { ...EMPTY_CRITERIA }, lastSearch: null, view: 'recherche' }),
+    clearForm: () => set({ form: { ...EMPTY_CRITERIA }, view: 'recherche' }),
 
-    deselect: () => {
-      const { cellar, form, lastSearch } = get();
-      const target = computeTarget(cellar, form);
-      if (lastSearch) {
-        set({ form: lastSearch, lastSearch: null });
-      } else if (target.kind === 'bouteille' && !target.modifie) {
-        set({ form: { ...EMPTY_CRITERIA } });
-      } else {
-        set({ form: { ...form, clayette: '', rang: '' } });
-      }
+    deselect: () => set((s) => ({ form: { ...s.form, clayette: '', rang: '' } })),
+
+    toggleShelf: (clayette) => {
+      const { form, mode } = get();
+      if (mode.kind !== 'normal') return;
+      const same = form.clayette.trim() === String(clayette) && !form.rang.trim();
+      set({ form: { ...form, clayette: same ? '' : String(clayette), rang: '' } });
     },
 
     /* ---------------- schéma ---------------- */
@@ -334,23 +333,20 @@ export const useStore = create<AppState>()((set, get) => {
         return;
       }
 
-      // Mode normal.
+      if (mode.kind === 'correction') {
+        notify('info', 'Enregistrez ou annulez d\'abord la correction en cours.');
+        return;
+      }
+
+      // Mode normal : toucher un emplacement écrit sa clayette et son rang dans le formulaire
+      // (les critères « vin » ne changent jamais) ; le retoucher retire la désignation.
       const current = formSlot(cellar, form);
       const same = current !== null && current.clayette === slot.clayette && current.rang === slot.rang;
       if (same) {
         get().deselect();
         return;
       }
-      if (bottle) {
-        const target = computeTarget(cellar, form);
-        const isSearch = target.kind === 'selection' && hasAnyCriteria(form);
-        set((s) => ({
-          form: criteriaFromBottle(bottle),
-          lastSearch: isSearch ? form : s.lastSearch,
-        }));
-      } else {
-        set({ form: { ...form, clayette: String(slot.clayette), rang: String(slot.rang) } });
-      }
+      set({ form: { ...form, clayette: String(slot.clayette), rang: String(slot.rang) } });
     },
 
     dropBottle: (bottleId, to) => {
@@ -364,9 +360,7 @@ export const useStore = create<AppState>()((set, get) => {
       if (mode.kind !== 'normal') return;
       const bottle = bottleById(cellar, bottleId);
       if (!bottle) return;
-      const target = computeTarget(cellar, form);
-      const isSearch = target.kind === 'selection' && hasAnyCriteria(form);
-      set((s) => ({ form: criteriaFromBottle(bottle), lastSearch: isSearch ? form : s.lastSearch }));
+      set({ form: { ...form, clayette: String(bottle.clayette), rang: String(bottle.rang) } });
       revealSlot(bottle);
     },
 
@@ -485,7 +479,10 @@ export const useStore = create<AppState>()((set, get) => {
       if (mode.kind !== 'normal') return;
       const target = computeTarget(cellar, form);
       if (target.bottles.length === 0) {
-        notify('info', 'Touchez une bouteille dans le schéma, ou saisissez des critères, pour indiquer quoi retirer.');
+        notify(
+          'info',
+          'Touchez une bouteille dans le schéma, ou saisissez des critères, pour indiquer quoi supprimer.',
+        );
         return;
       }
       const bottles = target.bottles;
@@ -496,39 +493,77 @@ export const useStore = create<AppState>()((set, get) => {
             current.cellar,
             bottles.map((b) => b.id),
           ),
-          `Retrait de ${plural(bottles.length, 'bouteille', 'bouteilles')}`,
-          { dialog: null },
+          `Suppression de ${plural(bottles.length, 'bouteille', 'bouteilles')}`,
+          // La bouteille désignée n'existe plus : on retire la désignation.
+          {
+            dialog: null,
+            ...(target.kind === 'bouteille' ? { form: { ...current.form, clayette: '', rang: '' } } : {}),
+          },
         );
         notify(
           'succes',
           bottles.length === 1
-            ? `${formatWine(bottles[0]!)} retirée de la cave (${formatSlotShort(bottles[0]!)}).`
-            : `${bottles.length} bouteilles retirées de la cave.`,
+            ? `${formatWine(bottles[0]!)} supprimée de la cave (${formatSlotShort(bottles[0]!)}).`
+            : `${bottles.length} bouteilles supprimées de la cave.`,
           { undo: true },
         );
       };
-      if (bottles.length === 1) {
+      // Une bouteille ordinaire : suppression immédiate, annulable. Une bouteille de collection
+      // ou plusieurs bouteilles : confirmation avec la liste nominative.
+      const single = bottles[0]!;
+      if (bottles.length === 1 && !single.collection) {
         run();
         return;
       }
       set({
-        dialog: {
-          kind: 'confirm',
-          title: `Retirer ${bottles.length} bouteilles ?`,
-          message: 'Toutes les bouteilles correspondant aux critères seront retirées de la cave.',
-          details: bottles.map((b) => `${formatWine(b)} — ${formatSlot(b)}`),
-          confirmLabel: `Retirer les ${bottles.length} bouteilles`,
-          danger: true,
-          onConfirm: run,
-        },
+        dialog:
+          bottles.length === 1
+            ? {
+                kind: 'confirm',
+                title: 'Supprimer cette bouteille de collection ?',
+                message: `${formatWine(single)} (${formatSlot(single)}) est classée en collection.`,
+                confirmLabel: 'Supprimer',
+                danger: true,
+                onConfirm: run,
+              }
+            : {
+                kind: 'confirm',
+                title: `Supprimer ${bottles.length} bouteilles ?`,
+                message: 'Toutes les bouteilles correspondant aux critères seront supprimées de la cave.',
+                details: bottles.map(
+                  (b) => `${formatWine(b)} — ${formatSlot(b)}${b.collection ? ' — ★ collection' : ''}`,
+                ),
+                confirmLabel: `Supprimer les ${bottles.length} bouteilles`,
+                danger: true,
+                onConfirm: run,
+              },
+      });
+    },
+
+    startEdit: () => {
+      const { cellar, form, mode } = get();
+      if (mode.kind !== 'normal') return;
+      const target = computeTarget(cellar, form);
+      const bottle = target.bottles[0];
+      if (target.kind !== 'bouteille' || !bottle) {
+        notify('info', 'Touchez d\'abord dans le schéma la bouteille à corriger.');
+        return;
+      }
+      set({
+        mode: { kind: 'correction', bottleId: bottle.id, previous: form },
+        form: criteriaFromBottle(bottle),
+        view: 'recherche',
       });
     },
 
     saveEdit: () => {
-      const { cellar, form } = get();
-      const target = computeTarget(cellar, form);
-      const bottle = target.bottles[0];
-      if (target.kind !== 'bouteille' || !bottle) return;
+      const { cellar, form, mode } = get();
+      if (mode.kind !== 'correction') return;
+      const bottle = bottleById(cellar, mode.bottleId);
+      if (!bottle) {
+        set({ mode: { kind: 'normal' }, form: mode.previous });
+        return;
+      }
       const wine = wineFromCriteria(form);
       if (!wine.ok) {
         notify('erreur', wine.error);
@@ -539,16 +574,20 @@ export const useStore = create<AppState>()((set, get) => {
         notify('erreur', res.error);
         return;
       }
-      const updated = bottleById(res.value, bottle.id);
-      commit(res.value, 'Modification d\'une bouteille', updated ? { form: criteriaFromBottle(updated) } : {});
-      notify('succes', `Bouteille ${formatSlotShort(bottle)} modifiée.`, { undo: true });
+      // Retour à la recherche précédente, la bouteille corrigée restant désignée.
+      commit(res.value, 'Correction d\'une bouteille', {
+        mode: { kind: 'normal' },
+        form: { ...mode.previous, clayette: String(bottle.clayette), rang: String(bottle.rang) },
+      });
+      notify('succes', `Bouteille ${formatSlotShort(bottle)} corrigée : ${formatWine(wine.value)}.`, { undo: true });
     },
 
-    revertEdit: () => {
-      const { cellar, form } = get();
-      const target = computeTarget(cellar, form);
-      const bottle = target.bottles[0];
-      if (target.kind === 'bouteille' && bottle) set({ form: criteriaFromBottle(bottle) });
+    reuseBottle: (bottleId) => {
+      const { cellar, mode } = get();
+      if (mode.kind !== 'normal') return;
+      const bottle = bottleById(cellar, bottleId);
+      if (!bottle) return;
+      set({ form: { ...criteriaFromBottle(bottle), clayette: '', rang: '' }, view: 'recherche' });
     },
 
     startMove: () => {
@@ -625,6 +664,11 @@ export const useStore = create<AppState>()((set, get) => {
         get().quitReorg();
         return;
       }
+      if (mode.kind === 'correction') {
+        // On rend au formulaire les critères d'avant la correction.
+        set({ mode: { kind: 'normal' }, form: mode.previous });
+        return;
+      }
       set({ mode: { kind: 'normal' } });
     },
 
@@ -692,7 +736,6 @@ export const useStore = create<AppState>()((set, get) => {
           future: [],
           mode: { kind: 'normal' },
           form: { ...EMPTY_CRITERIA },
-          lastSearch: null,
         }));
         notify(
           'succes',
@@ -766,7 +809,6 @@ export const useStore = create<AppState>()((set, get) => {
       commit(cellar, label, {
         mode: { kind: 'normal' },
         form: { ...EMPTY_CRITERIA },
-        lastSearch: null,
         advice: null,
         view: 'recherche',
       });

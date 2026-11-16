@@ -19,7 +19,9 @@
   flex-direction: column;
   width: 100%;
   max-width: 620px;
-  max-height: 100%;
+  /* Hauteur bornée par l'écran (et non par la grille) : le pied de fenêtre reste toujours visible. */
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-l);

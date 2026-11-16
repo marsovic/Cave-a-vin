@@ -29,12 +29,14 @@ const MARKER_LABELS: Record<NonNullable<SlotVisual['marker']>, string> = {
   destination: 'où la poser',
 };
 
+/** Codes de type sur deux lettres, pour l'armoire compacte (téléphone). */
+const TYPE_CODES: Record<Shelf['type'], string> = { bordeaux: 'Bx', bourgogne: 'Bg', champagne: 'Ch', tout: 'Tt' };
+
 const FIXED_SIZES: Record<Exclude<Prefs['zoom'], 'auto'>, number> = { petit: 22, moyen: 32, grand: 44 };
 const SLOT_GAP = 3;
-const MIN_AUTO = 18;
-const MAX_AUTO = 48;
-/** Taille minimale tolérée avant de préférer un défilement vertical. */
-const MIN_COMFORT = 26;
+const MAX_AUTO = 50;
+/** En dessous de cette largeur, l'armoire passe en présentation compacte (téléphone). */
+const COMPACT_WIDTH = 520;
 
 function describe(v: SlotVisual, shelf: Shelf): string {
   const where = formatSlotShort(v.slot);
@@ -154,6 +156,9 @@ export function CaveView(): ReactNode {
   const advice = useStore((s) => s.advice);
   const zoom = useStore((s) => s.prefs.zoom);
   const reveal = useStore((s) => s.reveal);
+  const toggleShelf = useStore((s) => s.toggleShelf);
+  // Clayette servant de critère seul (sans rang) : son étiquette est marquée.
+  const shelfFilter = form.clayette.trim() && !form.rang.trim() ? Number(form.clayette) : null;
 
   const visuals = useMemo(
     () => computeVisuals({ cellar, form, mode, view, advice }),
@@ -180,12 +185,16 @@ export function CaveView(): ReactNode {
   const slotSize = useMemo(() => {
     if (zoom !== 'auto') return FIXED_SIZES[zoom];
     if (box.width === 0) return 30;
-    const labelWidth = box.width < 520 ? 34 : 58;
-    const chrome = 2 * 12 + labelWidth + 8; // marges de l'armoire + étiquette
-    const fitWidth = Math.floor((box.width - chrome) / maxCap) - SLOT_GAP;
-    const fitHeight = Math.floor((box.height - 2 * 12) / Math.max(1, shelfCount)) - 9;
-    const size = Math.min(fitWidth, Math.max(fitHeight, MIN_COMFORT));
-    return Math.max(MIN_AUTO, Math.min(MAX_AUTO, size));
+    // Mêmes mesures que la feuille de style (cave.css) : marges de l'armoire, étiquette, filet de clayette.
+    const compact = box.width < COMPACT_WIDTH;
+    const chromeX = compact ? 2 * 10 + 34 + 5 + 6 : 2 * 15 + 52 + 8 + 6;
+    const chromeY = compact ? 2 * 8 + 6 : 2 * 12 + 8;
+    const rowChrome = compact ? 3 : 9;
+    const fitWidth = Math.floor((box.width - chromeX + SLOT_GAP) / maxCap) - SLOT_GAP;
+    const fitHeight = Math.floor((box.height - chromeY) / Math.max(1, shelfCount)) - rowChrome;
+    // La cave entière reste visible tant que les emplacements gardent une taille utilisable.
+    const min = compact ? 15 : 20;
+    return Math.max(min, Math.min(MAX_AUTO, fitWidth, fitHeight));
   }, [zoom, box.width, box.height, maxCap, shelfCount]);
 
   // Fait défiler jusqu'à l'emplacement demandé (étape de réorganisation, résultat choisi…).
@@ -221,8 +230,8 @@ export function CaveView(): ReactNode {
   };
 
   const draggable = mode.kind === 'normal';
-  const showYear = slotSize >= 24;
-  const compactLabels = box.width > 0 && box.width < 520;
+  const showYear = slotSize >= 23;
+  const compactLabels = box.width > 0 && box.width < COMPACT_WIDTH;
   // Un seul emplacement est dans l'ordre de tabulation (les flèches font le reste).
   const selectedKey = visuals.flat().find((v) => v.selected)?.slot;
   const focusKey = selectedKey ?? { clayette: 1, rang: 1 };
@@ -242,13 +251,19 @@ export function CaveView(): ReactNode {
           const shelf = cellar.shelves[i]!;
           return (
             <div className="shelf" role="row" key={i} data-type={shelf.type}>
-              <div
+              <button
+                type="button"
                 className="shelf-label"
-                title={`Clayette ${i + 1} — ${shelf.capacite} emplacements ${TYPE_CLAYETTE_LABELS[shelf.type]}`}
+                aria-pressed={shelfFilter === i + 1}
+                onClick={() => toggleShelf(i + 1)}
+                tabIndex={-1}
+                title={`Clayette ${i + 1} — ${shelf.capacite} emplacements ${TYPE_CLAYETTE_LABELS[shelf.type]}. Cliquez pour limiter la recherche à cette clayette.`}
               >
                 <span className="shelf-num">{i + 1}</span>
-                <span className="shelf-type">{TYPE_CLAYETTE_SHORT[shelf.type]}</span>
-              </div>
+                <span className="shelf-type">
+                  {compactLabels ? TYPE_CODES[shelf.type] : TYPE_CLAYETTE_SHORT[shelf.type]}
+                </span>
+              </button>
               <div className="shelf-slots">
                 {row.map((v) => (
                   <Slot

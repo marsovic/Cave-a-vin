@@ -28,6 +28,8 @@ export type Mode =
     }
   /** Déplacement / échange : en attente de la destination. */
   | { kind: 'deplacement'; bottleId: string }
+  /** Correction d'une bouteille : le formulaire contient sa description, modifiable. */
+  | { kind: 'correction'; bottleId: string; previous: Criteria }
   /** Réorganisation : aperçu des plans avant de commencer. */
   | {
       kind: 'reorg-apercu';
@@ -194,8 +196,8 @@ export interface Target {
   kind: 'bouteille' | 'selection' | 'emplacement' | 'aucune';
   bottles: Bottle[];
   slot: SlotRef | null;
-  /** Vrai si le formulaire décrit autre chose que la bouteille désignée (modification en attente). */
-  modifie: boolean;
+  /** La bouteille désignée ne satisfait pas les critères « vin » saisis. */
+  horsCriteres: boolean;
   /** Erreur de saisie dans les critères, le cas échéant. */
   erreur: string | null;
 }

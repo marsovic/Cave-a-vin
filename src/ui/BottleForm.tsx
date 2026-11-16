@@ -47,7 +47,9 @@ export function BottleForm(): ReactNode {
   const id = useId();
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
-  const locked = mode.kind !== 'normal';
+  // Le formulaire reste modifiable pendant la correction d'une bouteille (sauf sa position).
+  const correcting = mode.kind === 'correction';
+  const locked = mode.kind !== 'normal' && !correcting;
 
   const chateaux = useMemo(() => uniqueSorted(cellar.bottles.map((b) => b.chateau)), [cellar]);
   const appellations = useMemo(
@@ -333,6 +335,7 @@ export function BottleForm(): ReactNode {
             onChange={(e) => setField('clayette', e.target.value.replace(/\D/g, '').slice(0, 2))}
             placeholder={`1–${maxClayette}`}
             enterKeyHint="done"
+            disabled={correcting}
           />
         </div>
 
@@ -350,6 +353,7 @@ export function BottleForm(): ReactNode {
             onChange={(e) => setField('rang', e.target.value.replace(/\D/g, '').slice(0, 2))}
             placeholder="1–…"
             enterKeyHint="done"
+            disabled={correcting}
           />
         </div>
 

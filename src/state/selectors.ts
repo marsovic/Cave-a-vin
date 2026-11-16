@@ -1,12 +1,10 @@
 import { allSlots, bottleAt, bottleById, isCompatible, isValidSlot, occupancy, slotKey } from '../domain/cellar';
-import { joinCepages, norm, splitCepages } from '../domain/normalize';
 import {
   compileCriteria,
   criteriaError,
   hasAnyCriteria,
   hasWineCriteria,
   parsePositiveInt,
-  parseYearExpr,
 } from '../domain/search';
 import type { Bottle, Cellar, Criteria, DrinkStatus, SlotRef } from '../domain/types';
 import type { AdviceReport, Mode, SlotMarker, SlotVisual, Target, View } from './types';
@@ -20,26 +18,14 @@ export function formSlot(cellar: Cellar, form: Criteria): SlotRef | null {
   return isValidSlot(cellar, slot) ? slot : null;
 }
 
-/** Le formulaire décrit-il exactement ce vin ? (pour détecter une modification en attente) */
-export function formDescribes(form: Criteria, b: Bottle): boolean {
-  const year = parseYearExpr(form.annee);
-  const formYear = year.ok && !year.empty ? year.single : null;
-  const sameYear = year.ok && (year.empty || year.none ? b.annee === null : formYear === b.annee);
-  const cepForm = splitCepages(form.cepages).map(norm).join('|');
-  const cepBottle = b.cepages.map(norm).join('|');
-  return (
-    form.chateau.replace(/\s+/g, ' ').trim() === b.chateau &&
-    form.appellation.replace(/\s+/g, ' ').trim() === b.appellation &&
-    sameYear &&
-    form.robe === b.robe &&
-    form.forme === b.forme &&
-    (cepForm === cepBottle || form.cepages.trim() === joinCepages(b.cepages))
-  );
+/** Critères du formulaire sans la position (clayette / rang). */
+export function wineCriteria(form: Criteria): Criteria {
+  return { ...form, clayette: '', rang: '' };
 }
 
 /**
  * Cible des actions du formulaire.
- *  - clayette + rang désignent un emplacement occupé → cette bouteille (quels que soient les autres champs) ;
+ *  - clayette + rang désignent un emplacement occupé → cette bouteille (la désignation prime) ;
  *  - clayette + rang désignent un emplacement libre → cet emplacement ;
  *  - sinon → toutes les bouteilles correspondant aux critères ;
  *  - aucun critère → aucune cible.
@@ -50,16 +36,29 @@ export function computeTarget(cellar: Cellar, form: Criteria): Target {
   if (slot) {
     const bottle = bottleAt(cellar, slot);
     if (bottle) {
-      return { kind: 'bouteille', bottles: [bottle], slot, modifie: !formDescribes(form, bottle), erreur };
+      const horsCriteres = hasWineCriteria(form) && !compileCriteria(wineCriteria(form))(bottle);
+      return { kind: 'bouteille', bottles: [bottle], slot, horsCriteres, erreur };
     }
-    return { kind: 'emplacement', bottles: [], slot, modifie: false, erreur };
+    return { kind: 'emplacement', bottles: [], slot, horsCriteres: false, erreur };
   }
   if (erreur || !hasAnyCriteria(form)) {
-    return { kind: 'aucune', bottles: [], slot: null, modifie: false, erreur };
+    return { kind: 'aucune', bottles: [], slot: null, horsCriteres: false, erreur };
   }
   const test = compileCriteria(form);
   const bottles = cellar.bottles.filter(test).sort((a, b) => a.clayette - b.clayette || a.rang - b.rang);
-  return { kind: 'selection', bottles, slot: null, modifie: false, erreur: null };
+  return { kind: 'selection', bottles, slot: null, horsCriteres: false, erreur: null };
+}
+
+/**
+ * Bouteilles « mises en valeur » par les critères : avec un emplacement désigné,
+ * seuls les critères « vin » comptent ; sinon tous les critères. `null` si rien à mettre en valeur.
+ */
+export function computeMatches(cellar: Cellar, form: Criteria): Bottle[] | null {
+  if (criteriaError(form, cellar)) return null;
+  const criteria = formSlot(cellar, form) ? wineCriteria(form) : form;
+  if (!hasAnyCriteria(criteria)) return null;
+  const test = compileCriteria(criteria);
+  return cellar.bottles.filter(test).sort((a, b) => a.clayette - b.clayette || a.rang - b.rang);
 }
 
 /** Emplacements libres mis en valeur par « Places libres » (filtrés par forme, clayette et rang du formulaire). */
@@ -180,6 +179,13 @@ export function computeVisuals(input: VisualInput): SlotVisual[][] {
       });
       return rows;
     }
+    case 'correction': {
+      // Seule la bouteille en cours de correction est marquée ; rien n'est atténué.
+      const edited = bottleById(cellar, mode.bottleId);
+      const v = edited ? at(edited) : undefined;
+      if (v) v.selected = true;
+      return rows;
+    }
     case 'normal':
       break;
   }
@@ -214,27 +220,20 @@ export function computeVisuals(input: VisualInput): SlotVisual[][] {
     return rows;
   }
 
-  // Vue « recherche ».
-  const target = computeTarget(cellar, form);
-  if (target.slot) {
-    // Un emplacement précis est désigné : on le marque, sans atténuer le reste.
-    const sel = at(target.slot);
-    if (sel) sel.selected = true;
-    // Les autres bouteilles du même vin sont discrètement mises en valeur.
-    const b = target.bottles[0];
-    if (b && !target.modifie) {
-      const same = compileCriteria({ ...form, clayette: '', rang: '' });
-      each((v) => {
-        if (v.bottle && v.bottle.id !== b.id && same(v.bottle)) v.tone = 'match';
-      });
-    }
-    return rows;
-  }
-  if (target.kind === 'selection') {
-    const ids = new Set(target.bottles.map((b) => b.id));
+  // Vue « recherche » : les correspondances sont mises en valeur, le reste est atténué ;
+  // l'emplacement désigné porte le repère de sélection et reste toujours pleinement visible.
+  const matches = computeMatches(cellar, form);
+  if (matches) {
+    const ids = new Set(matches.map((b) => b.id));
     each((v) => {
       if (v.bottle) v.tone = ids.has(v.bottle.id) ? 'match' : 'dim';
     });
+  }
+  const slot = formSlot(cellar, form);
+  const sel = slot ? at(slot) : undefined;
+  if (sel) {
+    sel.selected = true;
+    if (sel.tone === 'dim') sel.tone = 'normal';
   }
   return rows;
 }

@@ -77,6 +77,15 @@
   flex: none;
 }
 
+.bottle-form .input,
+.bottle-form .select {
+  min-height: 38px;
+}
+
+.target-list-toggle {
+  display: none;
+}
+
 .form-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -123,15 +132,15 @@
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   min-height: 34px;
-  padding: 0 11px;
+  padding: 0 9px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--surface);
@@ -198,7 +207,12 @@
 .action-group {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
+}
+
+/* Les cinq actions « Bouteille » tiennent sur une ligne. */
+.action-group:first-child {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .action-group-title {
@@ -215,9 +229,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-height: 56px;
-  padding: 5px 2px;
+  gap: 2px;
+  min-height: 50px;
+  padding: 4px 1px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -229,22 +243,23 @@
     border-color 0.12s;
 }
 
-.action:hover:not(:disabled) {
+.action:hover:not([aria-disabled='true']) {
   background: var(--surface-2);
   border-color: var(--border-strong);
 }
 
-.action:disabled {
+.action[aria-disabled='true'] {
   opacity: 0.4;
+  cursor: help;
 }
 
-.action[data-primary]:not(:disabled) {
+.action[data-primary]:not([aria-disabled='true']) {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
 }
 
-.action[data-primary]:hover:not(:disabled) {
+.action[data-primary]:hover:not([aria-disabled='true']) {
   background: var(--accent-hover);
 }
 
@@ -307,6 +322,14 @@
     min-height: 36px;
     padding: 2px 4px 2px 8px;
     border-radius: var(--radius-s);
+  }
+
+  .target-list-toggle {
+    display: inline-flex;
+  }
+
+  .action-group:first-child {
+    grid-template-columns: none;
   }
 
   .form-fields {

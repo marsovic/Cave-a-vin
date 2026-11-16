@@ -64,6 +64,12 @@ function dominantSource(items: AdviceItem[]): AdviceReport['source'] {
   return source;
 }
 
+/** Retire la mention « l'IA affine… » quand l'appel à l'IA est annulé. */
+function clearPendingNote(): void {
+  const { advice } = useStore.getState();
+  if (advice?.note?.includes('affine ces conseils')) useStore.setState({ advice: { ...advice, note: null } });
+}
+
 /** Recalcule le rapport affiché après une modification de la cave (mêmes sources). */
 export function refreshAdvice(): void {
   const { advice, cellar } = useStore.getState();
@@ -103,9 +109,23 @@ export async function runAdvice(kind: AdviceKind): Promise<void> {
   let pairings: Map<string, Pairing> | undefined;
   let note: string | null = null;
 
+  // Local d'abord : un premier rapport s'affiche aussitôt (et hors ligne) ; l'IA l'affine ensuite.
+  const localSources = { windows: new Map(windows), pairings: undefined };
+  lastSources = localSources;
+  const localItems = buildItems(kind, cellar, plat, year, localSources);
+  store.setAdvice({
+    kind,
+    plat,
+    items: localItems,
+    source: dominantSource(localItems),
+    note: store.ai.desactivee ? null : 'Première estimation avec la base locale ; l\'assistant IA affine ces conseils…',
+    annee: year,
+  });
+  if (store.ai.desactivee) return;
+
   const abort = new AbortController();
   controller = abort;
-  store.setBusy({ label: 'Le sommelier réfléchit…', progress: null });
+  store.setBusy({ label: 'Le sommelier consulte l\'assistant IA…', progress: null });
   try {
     const status = await getAiStatus(store.ai, abort.signal);
     useStore.getState().setAiStatus(status);
@@ -149,14 +169,23 @@ export async function runAdvice(kind: AdviceKind): Promise<void> {
           }
         }
       } catch (error) {
-        if (error instanceof AiError && error.code === 'annule') return;
+        if (error instanceof AiError && error.code === 'annule') {
+          clearPendingNote();
+          return;
+        }
         const message = error instanceof AiError ? error.message : 'L\'assistant IA n\'a pas répondu.';
         note = `${message} Conseils établis avec la base de connaissances locale.`;
       }
-    } else if (!store.ai.desactivee) {
+    } else {
       note = `${status.message} Conseils établis avec la base de connaissances locale.`;
     }
-    if (abort.signal.aborted) return;
+    if (abort.signal.aborted) {
+      clearPendingNote();
+      return;
+    }
+    // L'utilisateur a fermé ou remplacé le rapport pendant l'attente : on ne le rouvre pas.
+    const shown = useStore.getState().advice;
+    if (!shown || shown.kind !== kind || shown.plat !== plat) return;
 
     const sources = { windows, pairings };
     // La cave a pu changer pendant l'attente : on calcule sur l'état courant.

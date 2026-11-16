@@ -17,20 +17,22 @@ interface ActionProps {
 }
 
 function Action({ icon, label, hint, onClick, disabled, active, primary, badge }: ActionProps): ReactNode {
+  const toast = useStore((s) => s.toast);
   return (
     <button
       type="button"
       className="action"
       data-primary={primary ? '' : undefined}
       aria-pressed={active}
-      onClick={onClick}
-      disabled={disabled}
+      // Un bouton indisponible reste cliquable : il explique alors ce qu'il attend.
+      aria-disabled={disabled ? true : undefined}
+      onClick={() => (disabled ? toast('info', hint) : onClick())}
       title={hint}
       aria-label={badge !== undefined && badge > 1 ? `${label} (${badge})` : label}
     >
       <span className="action-icon">
         <Icon name={icon} size={20} />
-        {badge !== undefined && badge > 1 ? <span className="action-badge">{badge}</span> : null}
+        {badge !== undefined && badge > 1 && !disabled ? <span className="action-badge">{badge}</span> : null}
       </span>
       <span className="action-label">{label}</span>
     </button>
@@ -57,7 +59,7 @@ export function ActionBar(): ReactNode {
 
   const target = useMemo(() => computeTarget(cellar, form), [cellar, form]);
   const locked = mode.kind !== 'normal';
-  const n = target.bottles.length;
+  const n = locked ? 0 : target.bottles.length;
   const canAdd = canDescribeWine(form);
   const hasPlat = plat.trim().length > 0;
   const toClass = target.bottles.filter((b) => !b.collection).length;
@@ -75,20 +77,20 @@ export function ActionBar(): ReactNode {
           hint={
             canAdd
               ? 'Ajouter la bouteille décrite dans le formulaire (un emplacement est proposé)'
-              : 'Décrivez d\'abord la bouteille : château ou appellation, robe et forme'
+              : 'Pour ajouter une bouteille, indiquez au moins son château ou son appellation dans le formulaire.'
           }
           onClick={startAdd}
           disabled={locked || !canAdd}
         />
         <Action
           icon="trash"
-          label="Retirer"
+          label="Supprimer"
           hint={
             n === 0
-              ? 'Touchez une bouteille ou saisissez des critères pour indiquer quoi retirer'
+              ? 'Touchez une bouteille dans le schéma, ou saisissez des critères, pour indiquer quoi supprimer.'
               : n === 1
-                ? 'Retirer cette bouteille de la cave (bue, offerte…)'
-                : `Retirer les ${n} bouteilles correspondant aux critères`
+                ? 'Supprimer cette bouteille de la cave (bue, offerte…)'
+                : `Supprimer les ${n} bouteilles correspondant aux critères (une confirmation est demandée)`
           }
           onClick={removeTarget}
           disabled={locked || n === 0}
@@ -100,17 +102,17 @@ export function ActionBar(): ReactNode {
           hint={
             n === 1
               ? 'Déplacer cette bouteille vers une place libre, ou l\'échanger avec une autre'
-              : 'Touchez d\'abord la bouteille à déplacer ou à échanger'
+              : 'Touchez d\'abord dans le schéma la bouteille à déplacer ou à échanger.'
           }
           onClick={startMove}
           disabled={locked || n !== 1}
         />
         <Action
           icon="star"
-          label="Collection"
+          label="Classer"
           hint={
             toClass === 0
-              ? 'Classer en « collection » : désignez d\'abord une ou plusieurs bouteilles non classées'
+              ? 'Pour classer en « collection », désignez une bouteille ou saisissez des critères (bouteilles non encore classées).'
               : toClass === 1
                 ? 'Classer cette bouteille en « collection » (exclue des conseils de dégustation)'
                 : `Classer ces ${toClass} bouteilles en « collection »`
@@ -124,7 +126,7 @@ export function ActionBar(): ReactNode {
           label="Déclasser"
           hint={
             toUnclass === 0
-              ? 'Retirer de la collection : désignez d\'abord une ou plusieurs bouteilles de collection'
+              ? 'Pour déclasser, désignez une bouteille de collection ou saisissez des critères qui en contiennent.'
               : toUnclass === 1
                 ? 'Retirer cette bouteille de la collection'
                 : `Retirer ces ${toUnclass} bouteilles de la collection`

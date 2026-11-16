@@ -70,6 +70,9 @@ function BottleCard({ bottle }: { bottle: Bottle }): ReactNode {
   const cellar = useStore((s) => s.cellar);
   const aiWindows = useStore((s) => s.aiWindows);
   const pinBottle = useStore((s) => s.pinBottle);
+  const startEdit = useStore((s) => s.startEdit);
+  const reuseBottle = useStore((s) => s.reuseBottle);
+  const mode = useStore((s) => s.mode.kind);
   const year = new Date().getFullYear();
   const window = aiWindows[wineKey(bottle)] ?? estimateDrinkWindow(bottle);
   const status = drinkStatus(window, year);
@@ -123,10 +126,29 @@ function BottleCard({ bottle }: { bottle: Bottle }): ReactNode {
           </span>
         </div>
       ) : null}
-      <p className="panel-tip">
-        Modifiez les champs du formulaire pour corriger cette bouteille, ou utilisez les actions Retirer, Déplacer,
-        Collection.
-      </p>
+      {mode === 'normal' ? (
+        <div className="panel-actions">
+          <button
+            type="button"
+            className="btn btn-small"
+            onClick={startEdit}
+            title="Corriger la description de cette bouteille (erreur de saisie ou de scan)"
+          >
+            <Icon name="pencil" size={15} />
+            Corriger
+          </button>
+          <button
+            type="button"
+            className="btn btn-small"
+            onClick={() => reuseBottle(bottle.id)}
+            title="Recopier ce vin dans le formulaire : pour retrouver toutes ses bouteilles ou en ajouter une autre"
+          >
+            <Icon name="clipboard" size={15} />
+            Reprendre dans le formulaire
+          </button>
+        </div>
+      ) : null}
+      <p className="panel-tip">Les actions Supprimer, Déplacer, Classer portent sur cette bouteille.</p>
     </div>
   );
 }
@@ -579,8 +601,8 @@ function IdlePanel(): ReactNode {
             correspondantes s'illuminent aussitôt dans le schéma.
           </p>
           <p>
-            <strong>Désigner</strong> : touchez une bouteille pour voir sa fiche, puis utilisez Retirer, Déplacer ou
-            Collection.
+            <strong>Désigner</strong> : touchez une bouteille pour voir sa fiche, puis utilisez Supprimer, Déplacer
+            ou Classer.
           </p>
           <p>
             <strong>Ajouter</strong> : décrivez la bouteille (ou scannez son étiquette), puis « Ajouter » : un
@@ -617,7 +639,10 @@ export function SidePanel(): ReactNode {
   else if (target.kind === 'bouteille' && target.bottles[0]) {
     content = (
       <>
-        <PanelHeader title="Bouteille désignée" subtitle={formatSlotShort(target.bottles[0])} />
+        <PanelHeader
+          title={mode.kind === 'correction' ? 'Bouteille en cours de correction' : 'Bouteille désignée'}
+          subtitle={formatSlotShort(target.bottles[0])}
+        />
         <div className="panel-body">
           <BottleCard bottle={target.bottles[0]} />
         </div>
@@ -628,7 +653,7 @@ export function SidePanel(): ReactNode {
       <>
         <PanelHeader
           title={`Résultats (${target.bottles.length})`}
-          subtitle="Touchez un emplacement pour désigner la bouteille."
+          subtitle="Touchez un emplacement (C·R) pour désigner la bouteille."
         />
         <div className="panel-body">
           <ResultsList bottles={target.bottles} />
