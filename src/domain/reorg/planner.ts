@@ -409,15 +409,71 @@ export interface Candidate {
   groupesSepares: number;
 }
 
+/**
+ * Dans chaque groupe (même château + même année), redistribue les bouteilles de MÊME FORME sur
+ * les emplacements que la cible leur attribue, de façon à laisser en place celles qui s'y
+ * trouvent déjà. L'ordre interne d'un lot n'a aucune importance pour le rangement : inutile
+ * d'échanger deux bouteilles voisines parce qu'elles diffèrent par le statut « collection »
+ * ou les cépages saisis. On ne permute qu'à forme égale : la suite des formes dans l'ordre de
+ * lecture — dont dépendent la faisabilité et la stabilité du plan — reste inchangée.
+ */
+export function keepGroupMembersInPlace(model: ReorgModel, current: Arrangement, target: Arrangement): Arrangement {
+  const out = Int32Array.from(target);
+  const buckets = new Map<string, number[]>();
+  for (let j = 0; j < target.length; j++) {
+    const c = target[j]!;
+    if (c === VIDE) continue;
+    const info = model.classes[c]!;
+    const key = `${info.groupe}|${info.forme}`;
+    const list = buckets.get(key);
+    if (list) list.push(j);
+    else buckets.set(key, [j]);
+  }
+  for (const slots of buckets.values()) {
+    if (slots.length < 2) continue;
+    const remaining = new Map<number, number>();
+    for (const j of slots) remaining.set(target[j]!, (remaining.get(target[j]!) ?? 0) + 1);
+    if (remaining.size < 2) continue; // bouteilles toutes identiques : rien à gagner
+
+    // 1. Une bouteille du lot déjà posée sur un des emplacements du lot y reste.
+    const open: number[] = [];
+    for (const j of slots) {
+      const c = current[j]!;
+      const left = c === VIDE ? 0 : (remaining.get(c) ?? 0);
+      if (left > 0) {
+        out[j] = c;
+        remaining.set(c, left - 1);
+      } else {
+        open.push(j);
+      }
+    }
+    // 2. Les autres emplacements reçoivent les bouteilles restantes, dans l'ordre d'origine.
+    const rest: number[] = [];
+    for (const j of slots) {
+      const c = target[j]!;
+      const left = remaining.get(c) ?? 0;
+      if (left > 0) {
+        rest.push(c);
+        remaining.set(c, left - 1);
+      }
+    }
+    open.forEach((j, i) => {
+      out[j] = rest[i]!;
+    });
+  }
+  return out;
+}
+
 /** Cible d'une variante : σ puis placement optimal (repli sur le placement glouton). */
 export function planVariant(model: ReorgModel, current: Arrangement, mode: ReorgMode, variant: Variant): Candidate {
   const { sigma, greedySlots } = canonicalSequence(model, sortedSequence(model, current, variant), mode);
   const weights = integerWeights(mode, sigma.length, model.slots.length);
   const slotsOf = alignSequence(model, current, sigma, weights) ?? greedySlots;
-  const target = new Int32Array(current.length).fill(VIDE);
+  const aligned = new Int32Array(current.length).fill(VIDE);
   sigma.forEach((c, i) => {
-    target[slotsOf[i]!] = c;
+    aligned[slotsOf[i]!] = c;
   });
+  const target = keepGroupMembersInPlace(model, current, aligned);
   return {
     variant,
     target,
@@ -464,14 +520,17 @@ export interface TargetPlan {
  */
 export function planTarget(model: ReorgModel, current: Arrangement, mode: ReorgMode): TargetPlan {
   let target = planOnce(model, current, mode).target;
+  // Les replanifications successives raisonnent sur des cibles intermédiaires : à la fin, on
+  // rapproche de nouveau l'ordre interne des groupes de la cave RÉELLE de départ.
+  const settle = (t: Arrangement): Arrangement => keepGroupMembersInPlace(model, current, t);
   for (let iterations = 1; iterations <= MAX_STABILISATION; iterations++) {
     const [position, alpha] = VARIANTS.map((variant) => planVariant(model, target, mode, variant)) as [
       Candidate,
       Candidate,
     ];
-    if (position.moves === 0 || alpha.moves === 0) return { target, stable: true, iterations };
+    if (position.moves === 0 || alpha.moves === 0) return { target: settle(target), stable: true, iterations };
     target =
       iterations > FREE_STABILISATION || compareCandidates(alpha, position) < 0 ? alpha.target : position.target;
   }
-  return { target, stable: false, iterations: MAX_STABILISATION };
+  return { target: settle(target), stable: false, iterations: MAX_STABILISATION };
 }
