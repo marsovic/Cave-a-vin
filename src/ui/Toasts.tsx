@@ -9,7 +9,7 @@ function ToastItem({ toast }: { toast: Toast }): ReactNode {
   const dismissToast = useStore((s) => s.dismissToast);
   const undo = useStore((s) => s.undo);
   // « Annuler » ne vaut que pour la toute dernière opération : on vérifie que l'historique n'a pas bougé.
-  const canUndo = useStore((s) => s.past.length > 0 && s.past.length === toast.depth && s.mode.kind === 'normal');
+  const canUndo = useStore((s) => s.past.length > 0 && s.rev === toast.rev && s.mode.kind === 'normal');
 
   useEffect(() => {
     const timer = setTimeout(() => dismissToast(toast.id), DURATION[toast.kind]);

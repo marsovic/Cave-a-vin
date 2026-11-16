@@ -4,7 +4,12 @@ import { ROBE_LABELS, formatSlotShort, formatWine } from '../domain/labels';
 import type { ReorgPlace } from '../domain/reorg';
 import type { Bottle } from '../domain/types';
 import { cancelBusy } from '../state/advice';
-import { resolveConflictWithFile, resolveConflictWithLocal, reconnectLinkedFile } from '../state/persistence';
+import {
+  reconnectLinkedFile,
+  resolveConflictWithFile,
+  resolveConflictWithLocal,
+  retryLinkedWrite,
+} from '../state/persistence';
 import { MAX_QUANTITY, useStore } from '../state/store';
 import { Icon } from './icons';
 
@@ -175,7 +180,7 @@ export function ModeBanner(): ReactNode {
           </p>
         </div>
         <div className="banner-actions">
-          <button type="button" className="btn btn-small" onClick={() => void resolveConflictWithLocal()}>
+          <button type="button" className="btn btn-small" onClick={() => void retryLinkedWrite()}>
             Réessayer
           </button>
         </div>

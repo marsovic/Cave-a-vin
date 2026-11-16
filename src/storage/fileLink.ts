@@ -128,6 +128,8 @@ const indexedDbStore: HandleStore = {
 
 let handleStore: HandleStore = indexedDbStore;
 let current: FileHandleLike | null = null;
+/** Descripteur lié avant le dernier choix de fichier (pour y revenir si le nouveau est inutilisable). */
+let previous: FileHandleLike | null = null;
 
 function pickerWindow(): PickerWindow | null {
   return typeof window === 'undefined' ? null : (window as unknown as PickerWindow);
@@ -186,6 +188,7 @@ export function isFileLinkSupported(): boolean {
 }
 
 async function adopt(handle: FileHandleLike): Promise<LinkedFileInfo> {
+  previous = current;
   current = handle;
   await handleStore.set(handle);
   return { name: handle.name, permission: await permissionOf(handle) };
@@ -283,14 +286,31 @@ export async function writeLinkedFile(csv: string): Promise<number> {
   }
 }
 
+/**
+ * Annule le dernier choix de fichier (fichier illisible, par exemple) : le fichier lié
+ * auparavant le redevient. Renvoie ses informations, ou `null` s'il n'y en avait pas.
+ */
+export async function revertLinkedFile(): Promise<LinkedFileInfo | null> {
+  current = previous;
+  previous = null;
+  if (!current) {
+    await handleStore.clear();
+    return null;
+  }
+  await handleStore.set(current);
+  return { name: current.name, permission: await permissionOf(current) };
+}
+
 /** Oublie le fichier lié. */
 export async function unlinkFile(): Promise<void> {
   current = null;
+  previous = null;
   await handleStore.clear();
 }
 
 /** Tests : remet le module à zéro et permet d'injecter un stockage de descripteur. */
 export function __resetForTests(store?: HandleStore): void {
   current = null;
+  previous = null;
   handleStore = store ?? indexedDbStore;
 }

@@ -13,6 +13,7 @@ import {
   readLinkedFile,
   requestLinkPermission,
   restoreLinkedFile,
+  revertLinkedFile,
   unlinkFile,
   writeLinkedFile,
 } from '../storage/fileLink';
@@ -120,6 +121,10 @@ function loadReorgSession(): ReorgSessionData | null {
 let writeTimer: ReturnType<typeof setTimeout> | null = null;
 let writing = false;
 let writeAgain = false;
+/** Vrai pendant qu'une cave lue dans le fichier lié est installée : ce changement ne doit pas être réécrit. */
+let applyingFile = false;
+
+type WriteOutcome = 'ecrit' | 'differe' | 'conflit' | 'erreur' | 'inactif';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -130,15 +135,22 @@ function isStable(state: AppState): boolean {
   return state.mode.kind !== 'reorg' || state.mode.horsCave.length === 0;
 }
 
-async function writeNow(force = false): Promise<void> {
+const UNSTABLE_MESSAGE =
+  'Une bouteille est posée hors de la cave (réorganisation en cours) : terminez d\'abord l\'échange en cours.';
+
+/**
+ * Écrit la cave dans le fichier lié. Sans `force`, l'écriture est refusée si le fichier a été
+ * modifié ailleurs depuis la dernière synchronisation (conflit à trancher par l'utilisateur).
+ */
+async function writeNow(force = false): Promise<WriteOutcome> {
   const state = useStore.getState();
   const { file } = state;
-  if (!file.linked || file.linked.permission !== 'granted') return;
-  if (file.conflict && !force) return;
-  if (!isStable(state)) return;
+  if (!file.linked || file.linked.permission !== 'granted') return 'inactif';
+  if (file.conflict && !force) return 'conflit';
+  if (!isStable(state)) return 'differe';
   if (writing) {
     writeAgain = true;
-    return;
+    return 'differe';
   }
   writing = true;
   try {
@@ -147,13 +159,15 @@ async function writeNow(force = false): Promise<void> {
       if (mtime !== null && mtime > file.syncedMtime) {
         // Le fichier a changé ailleurs (autre appareil, OneDrive, tableur) : on ne l'écrase pas.
         useStore.getState().setFile({ conflict: true });
-        return;
+        return 'conflit';
       }
     }
     const mtime = await writeLinkedFile(serializeCellar(useStore.getState().cellar));
     useStore.getState().setFile({ syncedMtime: mtime, dirty: false, conflict: false, error: null, savedAt: Date.now() });
+    return 'ecrit';
   } catch (error) {
     useStore.getState().setFile({ error: errorMessage(error, 'Impossible d\'écrire dans le fichier lié.') });
+    return 'erreur';
   } finally {
     writing = false;
     if (writeAgain) {
@@ -163,8 +177,13 @@ async function writeNow(force = false): Promise<void> {
   }
 }
 
-function scheduleWrite(): void {
+function cancelScheduledWrite(): void {
   if (writeTimer) clearTimeout(writeTimer);
+  writeTimer = null;
+}
+
+function scheduleWrite(): void {
+  cancelScheduledWrite();
   writeTimer = setTimeout(() => {
     writeTimer = null;
     void writeNow();
@@ -173,8 +192,11 @@ function scheduleWrite(): void {
 
 /** Recharge la cave depuis le fichier lié s'il a été modifié ailleurs. */
 async function syncFromLinkedFile(): Promise<void> {
-  const { file } = useStore.getState();
+  const state = useStore.getState();
+  const { file } = state;
   if (!file.linked || file.linked.permission !== 'granted' || writing) return;
+  // Pas de rechargement au milieu d'une opération (placement, correction, réorganisation…).
+  if (state.mode.kind !== 'normal') return;
   const mtime = await linkedFileModifiedAt();
   if (mtime === null) return;
   if (file.syncedMtime !== null && mtime <= file.syncedMtime) {
@@ -182,12 +204,18 @@ async function syncFromLinkedFile(): Promise<void> {
     return;
   }
   if (file.dirty) {
+    cancelScheduledWrite();
     useStore.getState().setFile({ conflict: true });
     return;
   }
   await loadFromLinkedFile(true);
 }
 
+/**
+ * Installe le contenu du fichier lié comme cave courante. Le fichier fait alors référence :
+ * rien n'est réécrit dedans (ses colonnes ou valeurs non reconnues restent intactes tant que
+ * l'utilisateur ne modifie pas la cave) et l'historique d'annulation repart de zéro.
+ */
 async function loadFromLinkedFile(silent: boolean): Promise<boolean> {
   const store = useStore.getState();
   try {
@@ -199,7 +227,13 @@ async function loadFromLinkedFile(silent: boolean): Promise<boolean> {
       return false;
     }
     const name = useStore.getState().file.linked?.name ?? 'le fichier';
-    useStore.getState().replaceCellar(parsed.cellar, `Chargement de ${name}`);
+    cancelScheduledWrite();
+    applyingFile = true;
+    try {
+      useStore.getState().loadCellar(parsed.cellar);
+    } finally {
+      applyingFile = false;
+    }
     useStore.getState().setFile({
       syncedMtime: content.lastModified,
       dirty: false,
@@ -208,13 +242,14 @@ async function loadFromLinkedFile(silent: boolean): Promise<boolean> {
       savedAt: content.lastModified,
       lastName: name,
     });
+    const remarks = parsed.warnings.length;
     store.toast(
       'info',
       silent
-        ? `Cave rechargée depuis ${name} (modifié ailleurs).`
+        ? `Cave rechargée depuis ${name} (modifié ailleurs)${remarks > 0 ? ` — ${remarks} remarque(s) de lecture` : ''}.`
         : `Cave chargée depuis ${name} : ${parsed.stats.bouteilles} bouteille(s).`,
     );
-    if (!silent && parsed.warnings.length > 0) showImportWarnings(parsed.warnings);
+    if (!silent && remarks > 0) showImportWarnings(parsed.warnings);
     return true;
   } catch (error) {
     store.setFile({ error: errorMessage(error, 'Impossible de lire le fichier lié.') });
@@ -234,15 +269,31 @@ function showImportWarnings(warnings: string[]): void {
 /** « Ouvrir un fichier CSV et le lier » : la cave devient le contenu du fichier. */
 export async function openLinkedFile(): Promise<void> {
   const store = useStore.getState();
+  if (store.mode.kind !== 'normal') {
+    store.toast('erreur', 'Terminez ou annulez d\'abord l\'opération en cours.');
+    return;
+  }
+  const before = store.file;
   try {
     const info = await pickLinkedFile();
     if (!info) return;
+    cancelScheduledWrite();
     store.setFile({ linked: info, conflict: false, error: null, syncedMtime: null });
     const ok = await loadFromLinkedFile(false);
     if (!ok) {
-      await unlinkFile();
-      useStore.getState().setFile({ linked: null });
-      store.toast('erreur', useStore.getState().file.error ?? 'Ce fichier n\'a pas pu être ouvert.');
+      // Fichier inutilisable : on revient au fichier lié auparavant, s'il y en avait un.
+      const reason = useStore.getState().file.error;
+      const previous = await revertLinkedFile();
+      useStore.getState().setFile({
+        linked: previous,
+        syncedMtime: previous ? before.syncedMtime : null,
+        conflict: previous ? before.conflict : false,
+        error: null,
+      });
+      store.toast(
+        'erreur',
+        `${reason ?? 'Ce fichier n\'a pas pu être ouvert.'}${previous ? ` Le fichier ${previous.name} reste lié.` : ''}`,
+      );
     }
   } catch (error) {
     store.toast('erreur', errorMessage(error, 'Ce fichier n\'a pas pu être ouvert.'));
@@ -252,14 +303,21 @@ export async function openLinkedFile(): Promise<void> {
 /** « Enregistrer sous… et lier » : crée un fichier CSV qui sera ensuite tenu à jour automatiquement. */
 export async function saveAsLinkedFile(): Promise<void> {
   const store = useStore.getState();
+  if (!isStable(store)) {
+    store.toast('erreur', UNSTABLE_MESSAGE);
+    return;
+  }
   try {
     const info = await createLinkedFile(store.file.linked?.name ?? store.file.lastName ?? CSV_DEFAULT_FILENAME);
     if (!info) return;
+    cancelScheduledWrite();
     store.setFile({ linked: info, conflict: false, error: null, syncedMtime: null, lastName: info.name });
-    await writeNow(true);
-    const { file } = useStore.getState();
-    if (file.error) store.toast('erreur', file.error);
-    else store.toast('succes', `Cave enregistrée dans ${info.name}. Ce fichier sera tenu à jour automatiquement.`);
+    const outcome = await writeNow(true);
+    if (outcome === 'ecrit') {
+      store.toast('succes', `Cave enregistrée dans ${info.name}. Ce fichier sera tenu à jour automatiquement.`);
+    } else {
+      store.toast('erreur', useStore.getState().file.error ?? `La cave n'a pas encore pu être écrite dans ${info.name}.`);
+    }
   } catch (error) {
     store.toast('erreur', errorMessage(error, 'Le fichier n\'a pas pu être créé.'));
   }
@@ -286,8 +344,7 @@ export async function reconnectLinkedFile(): Promise<void> {
 }
 
 export async function unlinkLinkedFile(): Promise<void> {
-  if (writeTimer) clearTimeout(writeTimer);
-  writeTimer = null;
+  cancelScheduledWrite();
   try {
     await unlinkFile();
   } catch {
@@ -297,17 +354,37 @@ export async function unlinkLinkedFile(): Promise<void> {
   useStore.getState().toast('info', 'Fichier délié. La cave reste enregistrée dans ce navigateur.');
 }
 
-/** Conflit : garder la version du fichier (la cave locale est remplacée, annulable). */
+/** Conflit : garder la version du fichier (la cave affichée est remplacée). */
 export async function resolveConflictWithFile(): Promise<void> {
+  if (useStore.getState().mode.kind !== 'normal') {
+    useStore.getState().toast('erreur', 'Terminez ou annulez d\'abord l\'opération en cours.');
+    return;
+  }
   await loadFromLinkedFile(false);
 }
 
-/** Conflit : garder la cave affichée et écraser le fichier. */
+/** Conflit : garder la cave affichée et écraser le fichier (choix explicite de l'utilisateur). */
 export async function resolveConflictWithLocal(): Promise<void> {
-  await writeNow(true);
-  const { file } = useStore.getState();
-  if (file.error) useStore.getState().toast('erreur', file.error);
-  else useStore.getState().toast('succes', 'Fichier mis à jour avec la cave affichée.');
+  const store = useStore.getState();
+  if (!isStable(store)) {
+    store.toast('erreur', UNSTABLE_MESSAGE);
+    return;
+  }
+  const outcome = await writeNow(true);
+  if (outcome === 'ecrit') store.toast('succes', 'Fichier mis à jour avec la cave affichée.');
+  else store.toast('erreur', useStore.getState().file.error ?? 'Le fichier n\'a pas pu être mis à jour.');
+}
+
+/**
+ * Nouvel essai après une erreur d'écriture. L'écriture n'est PAS forcée : si le fichier a été
+ * modifié entre-temps (enregistré depuis Excel, par exemple), le conflit est proposé à l'utilisateur.
+ */
+export async function retryLinkedWrite(): Promise<void> {
+  const store = useStore.getState();
+  store.setFile({ error: null });
+  const outcome = await writeNow(false);
+  if (outcome === 'ecrit') store.toast('succes', 'Fichier mis à jour.');
+  else if (outcome === 'differe') store.toast('info', UNSTABLE_MESSAGE);
 }
 
 /* ------------------------------------------------------------------ */
@@ -384,7 +461,16 @@ function markExported(name: string): void {
   useStore.getState().setFile(file.linked ? { lastName: name } : { dirty: false, lastName: name, savedAt: Date.now() });
 }
 
+/** Refuse un export pendant qu'une bouteille est hors cave : le fichier serait incomplet. */
+function exportBlocked(): boolean {
+  const state = useStore.getState();
+  if (isStable(state)) return false;
+  state.toast('erreur', UNSTABLE_MESSAGE);
+  return true;
+}
+
 export function exportDownload(): void {
+  if (exportBlocked()) return;
   const { cellar } = useStore.getState();
   const name = datedFilename();
   downloadCsv(serializeCellar(cellar), name);
@@ -394,6 +480,7 @@ export function exportDownload(): void {
 
 /** Partage (feuille de partage : Mail, Fichiers, OneDrive…). Renvoie `false` si indisponible. */
 export async function exportShare(): Promise<boolean> {
+  if (exportBlocked()) return true;
   const { cellar } = useStore.getState();
   const name = datedFilename();
   const result = await shareCsv(serializeCellar(cellar), name, {
@@ -416,6 +503,7 @@ export { canShareCsv };
  * dans le message s'il est court, sinon il faut joindre le fichier téléchargé).
  */
 export async function exportMail(): Promise<void> {
+  if (exportBlocked()) return;
   const { cellar } = useStore.getState();
   if (canShareCsv()) {
     const ok = await exportShare();
@@ -525,8 +613,11 @@ export async function initApp(): Promise<void> {
     if (!prev.ready) return;
     if (state.cellar !== prev.cellar) {
       if (isStable(state)) saveWorkingCopy(state.cellar);
-      if (!state.file.dirty) state.setFile({ dirty: true });
-      if (state.file.linked?.permission === 'granted') scheduleWrite();
+      // Une cave tout juste lue dans le fichier lié n'est ni « modifiée » ni à réécrire.
+      if (!applyingFile) {
+        if (!state.file.dirty) state.setFile({ dirty: true });
+        if (state.file.linked?.permission === 'granted') scheduleWrite();
+      }
       if (state.advice) refreshAdvice();
     }
     if (state.mode !== prev.mode) {
@@ -552,8 +643,7 @@ export async function initApp(): Promise<void> {
       if (document.visibilityState === 'visible') void syncFromLinkedFile();
       else if (writeTimer) {
         // L'onglet passe en arrière-plan : on écrit tout de suite.
-        clearTimeout(writeTimer);
-        writeTimer = null;
+        cancelScheduledWrite();
         void writeNow();
       }
     });

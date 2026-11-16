@@ -49,6 +49,8 @@ export interface AppState {
   cellar: Cellar;
   past: HistoryEntry[];
   future: HistoryEntry[];
+  /** Numéro de révision de la cave : augmente à chaque modification, annulation ou rétablissement. */
+  rev: number;
 
   /** Critères du formulaire. */
   form: Criteria;
@@ -125,6 +127,11 @@ export interface AppState {
   /* ---------- cave ---------- */
   applyShelves: (shelves: Shelf[]) => boolean;
   replaceCellar: (cellar: Cellar, label: string) => void;
+  /**
+   * Charge une cave lue dans le fichier lié : l'historique est vidé, car « annuler » ferait
+   * réécrire l'ancienne cave par-dessus le fichier qui fait désormais référence.
+   */
+  loadCellar: (cellar: Cellar) => void;
   undo: () => void;
   redo: () => void;
 
@@ -163,13 +170,14 @@ export const useStore = create<AppState>()((set, get) => {
       cellar: next,
       past: [...s.past, { cellar: s.cellar, label }].slice(-HISTORY_LIMIT),
       future: [],
+      rev: s.rev + 1,
       ...extra,
     }));
   };
 
   const notify = (kind: Toast['kind'], message: string, opts: { undo?: boolean } = {}): void => {
     toastId += 1;
-    const toast: Toast = { id: toastId, kind, message, undo: opts.undo, depth: get().past.length };
+    const toast: Toast = { id: toastId, kind, message, undo: opts.undo, rev: get().rev };
     set((s) => ({ toasts: [...s.toasts.slice(-3), toast] }));
   };
 
@@ -244,6 +252,7 @@ export const useStore = create<AppState>()((set, get) => {
     cellar: defaultCellar(),
     past: [],
     future: [],
+    rev: 0,
     form: { ...EMPTY_CRITERIA },
     plat: '',
     mode: { kind: 'normal' },
@@ -738,6 +747,7 @@ export const useStore = create<AppState>()((set, get) => {
           cellar: res.value.cellar,
           past: [...s.past, { cellar: mode.depart, label: 'Réorganisation de la cave' }].slice(-HISTORY_LIMIT),
           future: [],
+          rev: s.rev + 1,
           mode: { kind: 'normal' },
           form: { ...EMPTY_CRITERIA },
         }));
@@ -787,6 +797,7 @@ export const useStore = create<AppState>()((set, get) => {
       set((s) => ({
         past: [...s.past, { cellar: mode.depart, label: 'Réorganisation partielle de la cave' }].slice(-HISTORY_LIMIT),
         future: [],
+        rev: s.rev + 1,
         mode: { kind: 'normal' },
       }));
       notify(
@@ -798,7 +809,12 @@ export const useStore = create<AppState>()((set, get) => {
     /* ---------------- cave ---------------- */
 
     applyShelves: (shelves) => {
-      const { cellar } = get();
+      const { cellar, mode } = get();
+      if (mode.kind !== 'normal') {
+        // Un plan de réorganisation ou un placement en cours repose sur la configuration actuelle.
+        notify('erreur', 'Terminez ou annulez d\'abord l\'opération en cours avant de modifier les clayettes.');
+        return false;
+      }
       const res = updateShelves(cellar, shelves);
       if (!res.ok) {
         notify('erreur', res.error);
@@ -818,6 +834,18 @@ export const useStore = create<AppState>()((set, get) => {
       });
     },
 
+    loadCellar: (cellar) =>
+      set((s) => ({
+        cellar,
+        past: [],
+        future: [],
+        rev: s.rev + 1,
+        mode: { kind: 'normal' },
+        form: { ...EMPTY_CRITERIA },
+        advice: null,
+        view: 'recherche',
+      })),
+
     undo: () => {
       const { past, cellar, mode } = get();
       if (mode.kind !== 'normal') return;
@@ -827,6 +855,7 @@ export const useStore = create<AppState>()((set, get) => {
         cellar: entry.cellar,
         past: s.past.slice(0, -1),
         future: [...s.future, { cellar, label: entry.label }],
+        rev: s.rev + 1,
       }));
       notify('info', `Annulé : ${entry.label.toLowerCase()}.`);
     },
@@ -840,6 +869,7 @@ export const useStore = create<AppState>()((set, get) => {
         cellar: entry.cellar,
         future: s.future.slice(0, -1),
         past: [...s.past, { cellar, label: entry.label }],
+        rev: s.rev + 1,
       }));
       notify('info', `Rétabli : ${entry.label.toLowerCase()}.`);
     },

@@ -103,8 +103,8 @@ export interface Toast {
   message: string;
   /** Propose « Annuler » (annule la dernière opération). */
   undo?: boolean;
-  /** Profondeur de l'historique au moment du message : « Annuler » n'est proposé que si elle n'a pas changé. */
-  depth?: number;
+  /** Révision de la cave au moment du message : « Annuler » n'est proposé que si elle n'a pas changé. */
+  rev?: number;
 }
 
 export type Dialog =
