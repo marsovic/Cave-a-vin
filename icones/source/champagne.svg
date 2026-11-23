@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<defs>
+<linearGradient id="v" gradientUnits="userSpaceOnUse" x1="-24" y1="0" x2="24" y2="0">
+<stop offset="0" stop-color="#4DB86A"/>
+<stop offset="1" stop-color="#1B6B38"/>
+</linearGradient>
+<linearGradient id="o" gradientUnits="userSpaceOnUse" x1="9" y1="0" x2="24" y2="0">
+<stop offset="0" stop-color="#0A2A16" stop-opacity="0"/>
+<stop offset="1" stop-color="#0A2A16" stop-opacity="0.4"/>
+</linearGradient>
+<linearGradient id="d" gradientUnits="userSpaceOnUse" x1="-12" y1="0" x2="12" y2="0">
+<stop offset="0" stop-color="#FFDF5A"/>
+<stop offset="1" stop-color="#E5A019"/>
+</linearGradient>
+<linearGradient id="e" gradientUnits="userSpaceOnUse" x1="-13" y1="0" x2="13" y2="0">
+<stop offset="0" stop-color="#FFF6DF"/>
+<stop offset="1" stop-color="#E8D3A6"/>
+</linearGradient>
+<linearGradient id="l" gradientUnits="userSpaceOnUse" x1="-17" y1="0" x2="11" y2="0">
+<stop offset="0" stop-color="#E8BC85"/>
+<stop offset="1" stop-color="#B98445"/>
+</linearGradient>
+<linearGradient id="s" gradientUnits="userSpaceOnUse" x1="-6" y1="-6" x2="6" y2="6">
+<stop offset="0" stop-color="#FFC61A"/>
+<stop offset="1" stop-color="#F08C00"/>
+</linearGradient>
+<clipPath id="b">
+<path d="M-9-42V-28C-9-17-24-16-24-4V32Q-24 40-16 40H16Q24 40 24 32V-4C24-16 9-17 9-28V-42Z"/>
+</clipPath>
+</defs>
+<g transform="translate(41.5 58.5) rotate(45) scale(0.92)">
+<path d="M-9-42V-28C-9-17-24-16-24-4V32Q-24 40-16 40H16Q24 40 24 32V-4C24-16 9-17 9-28V-42Z" fill="url(#v)"/>
+<rect x="9" y="-42" width="15" height="82" fill="url(#o)" clip-path="url(#b)"/>
+<path d="M-14-13Q-18.5-9.5-19-2V1.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.45"/>
+<rect x="-13" y="6" width="26" height="24" rx="6" fill="url(#e)"/>
+<path d="M-16-44H16V-18.5Q0-13.5-16-18.5Z" fill="url(#d)" clip-path="url(#b)"/>
+<rect x="-12" y="-46" width="24" height="9" rx="3.5" fill="url(#d)"/>
+<rect x="-7.5" y="-43" width="4.5" height="20" rx="2.2" fill="#fff" opacity="0.4"/>
+<g transform="translate(1.5 -66) rotate(14)">
+<rect x="-8.5" y="-1" width="17" height="12" rx="3" fill="url(#l)"/>
+<rect x="-13" y="-11" width="26" height="12.5" rx="6" fill="url(#l)"/>
+<rect x="-9" y="-8.5" width="9" height="3.5" rx="1.7" fill="#fff" opacity="0.25"/>
+</g>
+<g transform="translate(-28 -46) rotate(-45) scale(1.05)">
+<path d="M0-10q3.8 6.2 10 10q-6.2 3.8-10 10q-3.8-6.2-10-10q6.2-3.8 10-10z" fill="url(#s)"/>
+</g>
+<g transform="translate(28 -46) rotate(-45) scale(0.9)">
+<path d="M0-10q3.8 6.2 10 10q-6.2 3.8-10 10q-3.8-6.2-10-10q6.2-3.8 10-10z" fill="url(#s)"/>
+</g>
+</g>
+</svg>

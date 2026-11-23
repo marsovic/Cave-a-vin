@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "icons": "node scripts/generate-icons.mjs",
+    "icones": "node scripts/icones.mjs build",
     "e2e": "node e2e/run.mjs"
   },
   "dependencies": {

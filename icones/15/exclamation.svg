@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15">
+<g transform="translate(1 1) scale(0.13)">
+<defs>
+    <linearGradient id="exclamation-15-g" gradientUnits="userSpaceOnUse" x1="42" y1="0" x2="58" y2="62">
+      <stop offset="0" stop-color="#FF7A6B"/>
+      <stop offset="0.5" stop-color="#F8312F"/>
+      <stop offset="1" stop-color="#D81C35"/>
+    </linearGradient>
+    <linearGradient id="exclamation-15-p" gradientUnits="userSpaceOnUse" x1="43" y1="70" x2="57" y2="100">
+      <stop offset="0" stop-color="#F8312F"/>
+      <stop offset="1" stop-color="#C1123A"/>
+    </linearGradient>
+    <linearGradient id="exclamation-15-h" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.2"/>
+    </linearGradient>
+    <clipPath id="exclamation-15-b"><path d="M30.3 18.7A20 16 0 1 1 69.7 18.7L62.3 53.2A12.5 10 0 0 1 37.7 53.2Z"/></clipPath>
+    <clipPath id="exclamation-15-d"><circle cx="50" cy="85" r="15"/></clipPath>
+  </defs>
+  <path d="M30.3 18.7A20 16 0 1 1 69.7 18.7L62.3 53.2A12.5 10 0 0 1 37.7 53.2Z" fill="url(#exclamation-15-g)"/>
+  <circle cx="50" cy="85" r="15" fill="url(#exclamation-15-p)"/>
+  <g fill="#9A0A32" fill-rule="evenodd" opacity="0.5">
+    <path clip-path="url(#exclamation-15-b)" d="M0 0H100V100H0ZM25.8 15.2A20 16 0 1 1 65.2 15.2L57.8 49.7A12.5 10 0 0 1 33.2 49.7Z"/>
+    <path clip-path="url(#exclamation-15-d)" d="M0 0H100V100H0ZM31.5 81.5A15 15 0 1 0 61.5 81.5A15 15 0 1 0 31.5 81.5Z"/>
+  </g>
+  <g fill="url(#exclamation-15-h)">
+    <ellipse cx="41" cy="15.5" rx="3.6" ry="8" transform="rotate(-10 41 15.5)"/>
+    <ellipse cx="44.5" cy="79" rx="4.8" ry="3.4" transform="rotate(-35 44.5 79)"/>
+  </g>
+</g>
+</svg>

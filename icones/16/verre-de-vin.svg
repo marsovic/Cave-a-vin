@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+<g transform="translate(0.228 0.0337) scale(0.1554)">
+<defs>
+    <linearGradient id="verre-de-vin-16-g" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#E3ECF5"/>
+      <stop offset="0.7" stop-color="#AEBFD3"/>
+      <stop offset="1" stop-color="#94A8C2"/>
+    </linearGradient>
+    <linearGradient id="verre-de-vin-16-s" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#CAD7E6"/>
+      <stop offset="1" stop-color="#8DA3BE"/>
+    </linearGradient>
+    <linearGradient id="verre-de-vin-16-r" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#94A9C3"/>
+      <stop offset="1" stop-color="#BDCBDD"/>
+    </linearGradient>
+    <linearGradient id="verre-de-vin-16-w" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#C2184B"/>
+      <stop offset="1" stop-color="#6E0A2A"/>
+    </linearGradient>
+    <linearGradient id="verre-de-vin-16-t" x1="0" y1="0" x2="1" y2="0.3">
+      <stop offset="0" stop-color="#F2668A"/>
+      <stop offset="1" stop-color="#E8476B"/>
+    </linearGradient>
+  </defs>
+  <path d="M39 58C43.5 60.5 45 64 45 68V83C45 87.5 42.5 90 37 91H63C57.5 90 55 87.5 55 83V68C55 64 56.5 60.5 61 58Z" fill="url(#verre-de-vin-16-s)"/>
+  <ellipse cx="50" cy="93" rx="26" ry="6.5" fill="url(#verre-de-vin-16-s)"/>
+  <ellipse cx="50" cy="91.5" rx="24" ry="4.6" fill="url(#verre-de-vin-16-g)"/>
+  <ellipse cx="44" cy="90.6" rx="13" ry="2" fill="#fff" opacity="0.6"/>
+  <path d="M22 8A28 5 0 0 1 78 8C82 17 86 27 86 37C86 52 71 62 50 62C29 62 14 52 14 37C14 27 18 17 22 8Z" fill="url(#verre-de-vin-16-g)"/>
+  <ellipse cx="50" cy="8" rx="28" ry="5" fill="url(#verre-de-vin-16-r)"/>
+  <path d="M22 8A28 5 0 0 0 78 8A28 3.2 0 0 1 22 8Z" fill="#fff" opacity="0.8"/>
+  <path d="M20 25C19 29 18.5 33 18.5 37C18.5 49.5 32.5 57.5 50 57.5C67.5 57.5 81.5 49.5 81.5 37C81.5 33 81 29 80 25Z" fill="url(#verre-de-vin-16-w)"/>
+  <path d="M81.5 37C81.5 49.5 67.5 57.5 50 57.5C40 57.5 31.5 55 25.5 50.5C33.5 54 45 54.8 56 52.3C69.5 49 78 43.5 81.5 37Z" fill="#4A0519" opacity="0.45"/>
+  <ellipse cx="50" cy="25" rx="30" ry="5.5" fill="url(#verre-de-vin-16-t)"/>
+  <path d="M28.5 16.5C30.3 16.5 31.6 17.9 30.9 19.6C28.6 25 27.1 30 26.6 35.5C26.2 41 27 46 29 50.5C25 47.5 22.4 43 22 37C21.6 31 22.8 25 25.6 18.4C26.1 17.2 27.2 16.5 28.5 16.5Z" fill="#fff" opacity="0.7"/>
+</g>
+</svg>
